@@ -1,7 +1,6 @@
 import { createEndpointHandler } from "@restatedev/restate-sdk-cloudflare-workers/fetch";
-import { ticketObject } from "./ticket";
+import { ticketObject, seatMapObject } from "./game";
 import { checkoutWorkflow } from "./checkout";
-import { seatMapObject } from "./seatmap";
 
 console.log("Starting worker script with createEndpointHandler...");
 

@@ -1,6 +1,6 @@
 import * as restate from "@restatedev/restate-sdk-cloudflare-workers/fetch";
-import type { TicketObject } from "./ticket";
-import { ticketObject } from "./ticket";
+import type { TicketObject } from "./game";
+import { ticketObject } from "./game";
 import { processPayment } from "./utils/payment_new";
 import { sendEmail } from "./utils/email";
 
