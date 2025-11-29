@@ -97,24 +97,31 @@ export const seatMapObject = restate.object({
             ctx.set("map", map);
 
             // Auto-Reset Logic
-            // Check if all 50 seats are SOLD
             const soldCount = Object.values(map).filter(s => s === "SOLD").length;
             if (soldCount >= 50) {
                 console.log("All seats sold! Triggering auto-reset...");
-                // Run as a side effect (or workflow step) to ensure it executes
-                ctx.run("reset-all-seats", async () => {
-                    for (let i = 1; i <= 50; i++) {
-                        // Fire and forget release calls to speed up? 
-                        // Or await them? Awaiting ensures order but might be slower.
-                        // Since we are in a Virtual Object handler, we should probably await or spawn a workflow.
-                        // For simplicity in this handler, we await.
-                        // Note: This might block the SeatMap for a few seconds.
-                        await ctx.objectClient(ticketObject, `seat-${i}`).release();
-                    }
-                });
+
+                // 1. Reset local map state immediately so frontend sees available seats
+                for (let i = 1; i <= 50; i++) {
+                    map[`seat-${i}`] = "AVAILABLE";
+                }
+                ctx.set("map", map);
+
+                // 2. Trigger async reset of Ticket objects (Fire and Forget)
+                // This avoids blocking the SeatMap while releasing tickets
+                ctx.objectSendClient(seatMapObject, "global").resetAll();
             }
 
             return true;
+        },
+        resetAll: async (ctx: restate.ObjectContext) => {
+            console.log("Executing async reset-all-seats...");
+            for (let i = 1; i <= 50; i++) {
+                // We can await here because this is a separate invocation
+                // It won't block the main 'set' operations (except for the single threaded execution of the object)
+                // But since 'set' already updated the map, new bookings can proceed (Ticket.reserve doesn't check SeatMap anymore)
+                await ctx.objectClient(ticketObject, `seat-${i}`).release();
+            }
         },
         get: async (ctx: restate.ObjectContext) => {
             const map = (await ctx.get<Record<string, string>>("map")) || {};
