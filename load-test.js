@@ -21,8 +21,8 @@ const CLOUD_URL = 'https://201kb75ca6xnry4gtf8h00r722y.env.us.restate.cloud:8080
 const AUTH_TOKEN = __ENV.RESTATE_AUTH_TOKEN;
 
 export default function () {
-    // Simulate contention: 50 users fighting for 100 seats
-    const seatId = `seat-${randomIntBetween(1, 100)}`;
+    // Simulate contention: VUS users fighting for 10000 seats
+    const seatId = `seat-${randomIntBetween(1, 10000)}`;
     const userId = `user-${__VU}-${__ITER}`;
 
     // 80% success, 10% decline, 10% error
