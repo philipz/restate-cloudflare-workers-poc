@@ -116,10 +116,16 @@ export const seatMapObject = restate.object({
         },
         resetAll: async (ctx: restate.ObjectContext) => {
             console.log("Executing async reset-all-seats...");
+
+            // 1. Reset local map state
+            const map = (await ctx.get<Record<string, string>>("map")) || {};
             for (let i = 1; i <= 50; i++) {
-                // We can await here because this is a separate invocation
-                // It won't block the main 'set' operations (except for the single threaded execution of the object)
-                // But since 'set' already updated the map, new bookings can proceed (Ticket.reserve doesn't check SeatMap anymore)
+                map[`seat-${i}`] = "AVAILABLE";
+            }
+            ctx.set("map", map);
+
+            // 2. Release all tickets
+            for (let i = 1; i <= 50; i++) {
                 await ctx.objectClient(ticketObject, `seat-${i}`).release();
             }
         },
