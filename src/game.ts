@@ -36,7 +36,6 @@ export const ticketObject = restate.object({
                 // Reserve for 15 minutes
                 state.reservedUntil = Date.now() + 15 * 60 * 1000;
                 ctx.set("state", state);
-                await ctx.objectClient(seatMapObject, "global").set({ seatId: ctx.key, status: "RESERVED" });
             }
 
             return true;
@@ -56,7 +55,6 @@ export const ticketObject = restate.object({
             state.status = "SOLD";
             state.reservedUntil = null;
             ctx.set("state", state);
-            await ctx.objectClient(seatMapObject, "global").set({ seatId: ctx.key, status: "SOLD" });
             return true;
         },
 
@@ -71,7 +69,6 @@ export const ticketObject = restate.object({
             state.reservedBy = null;
             state.reservedUntil = null;
             ctx.set("state", state);
-            await ctx.objectClient(seatMapObject, "global").set({ seatId: ctx.key, status: "AVAILABLE" });
             return true;
         },
 

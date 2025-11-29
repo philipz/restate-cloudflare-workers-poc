@@ -17,7 +17,7 @@ export const options = {
     },
 };
 
-const CLOUD_URL = 'https://201kb75ca6xnry4gtf8h00r722y.env.us.restate.cloud:8080';
+const CLOUD_URL = 'https://201kb7y8wxs1nk6t81wyx88dn2q.env.us.restate.cloud:8080';
 const AUTH_TOKEN = __ENV.RESTATE_AUTH_TOKEN;
 
 export default function () {

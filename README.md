@@ -52,7 +52,7 @@ curl -X POST http://localhost:9070/deployments \
 本專案已部署至 **Restate Cloud**，實現完全託管的 Durable Execution 環境。
 
 - **Restate Cloud Environment**: `nexus-poc`
-- **Ingress URL**: `https://201kb75ca6xnry4gtf8h00r722y.env.us.restate.cloud:8080`
+- **Ingress URL**: `https://201kb7y8wxs1nk6t81wyx88dn2q.env.us.restate.cloud:8080`
 
 ### 部署步驟
 1.  **登入 Restate Cloud**: `restate cloud login`

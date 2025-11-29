@@ -14,7 +14,7 @@ if [ -f .env ]; then
 fi
 
 # Restate Cloud Ingress URL
-RESTATE_CLOUD_URL="https://201kb75ca6xnry4gtf8h00r722y.env.us.restate.cloud:8080"
+RESTATE_CLOUD_URL="https://201kb7y8wxs1nk6t81wyx88dn2q.env.us.restate.cloud:8080"
 
 COLOR_GREEN='\033[0;32m'
 COLOR_RED='\033[0;31m'
