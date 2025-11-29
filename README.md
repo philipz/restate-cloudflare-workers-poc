@@ -30,7 +30,7 @@
 
 ### 1. 啟動 Restate Server
 ```bash
-docker run --name restate_dev -d -p 8080:8080 -p 9070:9070 -p 9091:9090 docker.io/restatedev/restate:latest
+docker run --name restate_dev -d -p 8080:8080 -p 9070:9070 -p 9090:9090 docker.io/restatedev/restate:latest
 ```
 
 ### 2. 部署 Worker
@@ -125,6 +125,21 @@ k6 run -e RESTATE_AUTH_TOKEN=$RESTATE_AUTH_TOKEN load-test.js
 # VUS: 並發用戶數
 # DURATION: 測試持續時間
 k6 run -e RESTATE_AUTH_TOKEN=$RESTATE_AUTH_TOKEN -e VUS=10 -e DURATION=60s load-test.js
+```
+
+#### 4. 本地壓力測試 (Local Load Testing)
+針對本地運行的 Restate Server (`localhost:8080`) 進行測試。
+
+**測試腳本**: `load-test-local.js`
+**前置需求**: 確保本地 Restate Server 已啟動 (Docker)。
+
+**執行方式**:
+```bash
+# 預設執行 (5 VUs, 30s)
+k6 run load-test-local.js
+
+# 自訂參數執行
+k6 run -e VUS=10 -e DURATION=60s load-test-local.js
 ```
 
 ## 📂 專案結構
