@@ -34,7 +34,8 @@ export const ticketObject = restate.object({
                 state.status = "RESERVED";
                 state.reservedBy = userId;
                 // Reserve for 15 minutes
-                state.reservedUntil = Date.now() + 15 * 60 * 1000;
+                const now = await ctx.run("now", () => Date.now());
+                state.reservedUntil = now + 15 * 60 * 1000;
                 ctx.set("state", state);
             }
 

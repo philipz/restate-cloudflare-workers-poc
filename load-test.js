@@ -22,7 +22,7 @@ const AUTH_TOKEN = __ENV.RESTATE_AUTH_TOKEN;
 
 export default function () {
     // Simulate contention: VUS users fighting for 10000 seats
-    const seatId = `seat-${randomIntBetween(1, 10000)}`;
+    const seatId = `seat-${randomIntBetween(1, 50)}`;
     const userId = `user-${__VU}-${__ITER}`;
 
     // 80% success, 10% decline, 10% error
