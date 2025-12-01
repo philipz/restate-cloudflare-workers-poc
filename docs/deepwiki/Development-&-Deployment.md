@@ -44,15 +44,15 @@ LocalTest["test-all.sh<br>localhost:8080"]
 CloudTest["test-cloud.sh<br>with RESTATE_AUTH_TOKEN"]
 LoadTest["k6 load-test.js<br>or load-test-local.js"]
 
-Wrangler -->|"npm run dev"| LocalDev
-Wrangler -->|"npm run deploy"| CFDeploy
-DockerRestate --> LocalTest
-RestateCloud --> CloudTest
-RestateCloud --> LoadTest
-DockerRestate --> LoadTest
-LocalTest --> Code
-CloudTest -->|"Validate"| Code
-LoadTest -->|"Performance feedback"| Code
+Wrangler -.->|"npm run dev"| LocalDev
+Wrangler -.-> CFDeploy
+DockerRestate -.-> LocalTest
+RestateCloud -.-> CloudTest
+RestateCloud -.-> LoadTest
+DockerRestate -.-> LoadTest
+LocalTest -.->|"Validate"| Code
+CloudTest -.->|"Performance feedback"| Code
+LoadTest -.-> Code
 
 subgraph Testing ["Testing"]
     LocalTest
@@ -65,25 +65,25 @@ subgraph subGraph2 ["Cloud Environment"]
     CFWorker
     RestateCloud
     CloudReg
-    CFDeploy --> CFWorker
-    CFWorker --> CloudReg
-    CloudReg --> RestateCloud
+    CFDeploy -.->|"Validate"| CFWorker
+    CFWorker -.-> CloudReg
+    CloudReg -.-> RestateCloud
 end
 
 subgraph subGraph1 ["Local Environment"]
     LocalDev
     DockerRestate
     LocalReg
-    LocalDev --> LocalReg
-    LocalReg --> DockerRestate
+    LocalDev -.-> LocalReg
+    LocalReg -.-> DockerRestate
 end
 
 subgraph subGraph0 ["Development Phase"]
     Code
     TSC
     Wrangler
-    Code --> TSC
-    TSC --> Wrangler
+    Code -.-> TSC
+    TSC -.->|"npm run deploy"| Wrangler
 end
 ```
 
@@ -161,30 +161,30 @@ Discovery["Service Discovery<br>GET /discover<br>to Worker"]
 Invocation["Invocation Endpoint<br>Port 8080 (local)<br>or Cloud Ingress URL"]
 Routes["Routes:<br>POST /Ticket/{key}/reserve<br>POST /Checkout/process<br>etc."]
 
-Discovery --> Worker
-Worker --> AdminAPI
-AdminAPI --> Invocation
+Discovery -.-> Worker
+Worker -.-> AdminAPI
+AdminAPI -.-> Invocation
 
 subgraph Result ["Result"]
     Invocation
     Routes
-    Invocation --> Routes
+    Invocation -.-> Routes
 end
 
 subgraph subGraph1 ["Restate Server"]
     AdminAPI
     Deployment
     Discovery
-    Deployment -->|"Returns service definitions"| AdminAPI
-    AdminAPI --> Discovery
+    Deployment -.->|"Returns service definitions"| AdminAPI
+    AdminAPI -.-> Discovery
 end
 
 subgraph subGraph0 ["Worker Deployment"]
     Worker
     Endpoint
     Services
-    Endpoint --> Services
-    Services --> Worker
+    Endpoint -.-> Services
+    Services -.-> Worker
 end
 ```
 
@@ -297,25 +297,25 @@ CFWorker["nexus-poc Worker<br>nexus-poc.philipz.workers.dev"]
 RestateInfra["Restate Cloud Infrastructure"]
 RestateEnv["nexus-poc Environment<br>201kb7y8wxs1nk6t81wyx88dn2q"]
 
-Repo -->|"wrangler dev"| LocalWorker
-Repo -->|"docker run"| LocalRestate
-Repo -->|"wrangler deploy"| CFInfra
-Repo -->|"restate deployments register"| RestateInfra
+Repo -.->|"wrangler dev"| LocalWorker
+Repo -.->|"docker run"| LocalRestate
+Repo -.->|"wrangler deploy"| CFInfra
+Repo -.->|"restate deployments register"| RestateInfra
 
 subgraph subGraph2 ["Cloud Deployment"]
     CFInfra
     CFWorker
     RestateInfra
     RestateEnv
-    CFInfra --> CFWorker
-    RestateInfra --> RestateEnv
-    CFWorker -->|"Registered with"| RestateEnv
+    CFInfra -.->|"Registered with"| CFWorker
+    RestateInfra -.-> RestateEnv
+    CFWorker -.-> RestateEnv
 end
 
 subgraph subGraph1 ["Local Deployment"]
     LocalWorker
     LocalRestate
-    LocalWorker -->|"Registered with"| LocalRestate
+    LocalWorker -.->|"Registered with"| LocalRestate
 end
 
 subgraph Source ["Source"]

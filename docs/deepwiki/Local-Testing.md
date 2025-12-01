@@ -69,37 +69,37 @@ TicketHandler["Ticket.reserve/confirm/release/get<br>src/game.ts:18-82"]
 AssertContains["assert_contains()<br>test-all.sh:29-45"]
 TestCounters["PASSED_TESTS<br>FAILED_TESTS<br>TOTAL_TESTS"]
 
-CurlClient -->|"POST /Checkout/process"| RestateIngress
-CurlClient -->|"POST /Ticket/{id}/get"| RestateIngress
-RestateInvoker -->|"Invoke Handler"| WorkerEndpoint
-CurlClient -->|"Response JSON"| AssertContains
+CurlClient -.->|"POST /Ticket/{id}/get"| RestateIngress
+CurlClient -.-> RestateIngress
+RestateInvoker -.-> WorkerEndpoint
+CurlClient -.->|"Response JSON"| AssertContains
 
 subgraph subGraph3 ["Test Validation"]
     AssertContains
     TestCounters
-    AssertContains --> TestCounters
+    AssertContains -.-> TestCounters
 end
 
 subgraph subGraph2 ["Cloudflare Worker (Deployed)"]
     WorkerEndpoint
     CheckoutHandler
     TicketHandler
-    WorkerEndpoint --> CheckoutHandler
-    WorkerEndpoint --> TicketHandler
+    WorkerEndpoint -.-> CheckoutHandler
+    WorkerEndpoint -.-> TicketHandler
 end
 
 subgraph subGraph1 ["Local Restate Server (Docker)"]
     RestateIngress
     RestateJournal
     RestateInvoker
-    RestateIngress --> RestateJournal
-    RestateJournal --> RestateInvoker
+    RestateIngress -.-> RestateJournal
+    RestateJournal -.->|"Invoke Handler"| RestateInvoker
 end
 
 subgraph subGraph0 ["Test Execution Environment"]
     TestScript
     CurlClient
-    TestScript --> CurlClient
+    TestScript -.->|"POST /Checkout/process"| CurlClient
 end
 ```
 
@@ -138,21 +138,21 @@ Test7["Test 7: Bulk Booking<br>test-all.sh:187-208"]
 TestSummary["Summary Output<br>test-all.sh:212-225"]
 ExitCode["Exit 0 or 1"]
 
-PrintTest -->|"Increments"| TotalTests
-AssertContains -->|"Increments"| PassedTests
-AssertContains -->|"Increments"| FailedTests
-Test1 --> TestSummary
-Test2 --> TestSummary
-Test3 --> TestSummary
-Test4 --> TestSummary
-Test5 --> TestSummary
-Test6 --> TestSummary
-Test7 --> TestSummary
+PrintTest -.->|"Increments"| TotalTests
+AssertContains -.->|"Increments"| PassedTests
+AssertContains -.->|"Increments"| FailedTests
+Test1 -.-> TestSummary
+Test2 -.-> TestSummary
+Test3 -.-> TestSummary
+Test4 -.-> TestSummary
+Test5 -.-> TestSummary
+Test6 -.-> TestSummary
+Test7 -.-> TestSummary
 
 subgraph subGraph4 ["Summary Report"]
     TestSummary
     ExitCode
-    TestSummary --> ExitCode
+    TestSummary -.-> ExitCode
 end
 
 subgraph subGraph3 ["Test Execution"]
@@ -383,11 +383,11 @@ PassAction["Print ✓ PASS<br>PASSED_TESTS++<br>Return 0"]
 FailAction["Print ✗ FAIL<br>FAILED_TESTS++<br>Return 1"]
 PrintExpected["Print Expected<br>Print Actual"]
 
-CurlResponse --> AssertContains
-AssertContains --> GrepMatch
-GrepMatch -->|"Yes"| PassAction
-GrepMatch -->|"No"| FailAction
-FailAction -->|"Debug Info"| PrintExpected
+CurlResponse -.-> AssertContains
+AssertContains -.-> GrepMatch
+GrepMatch -.->|"Yes"| PassAction
+GrepMatch -.->|"No"| FailAction
+FailAction -.->|"Debug Info"| PrintExpected
 ```
 
 **Key Implementation Details:**
@@ -429,18 +429,18 @@ CheckFailed["FAILED_TESTS == 0?"]
 ExitSuccess["Exit 0<br>🎉 All tests passed"]
 ExitFail["Exit 1<br>❌ Tests failed"]
 
-Start --> Init
-Init --> Test1
-Test1 --> Test2
-Test2 --> Test3
-Test3 --> Test4
-Test4 --> Test5
-Test5 --> Test6
-Test6 --> Test7
-Test7 --> Summary
-Summary --> CheckFailed
-CheckFailed -->|"Yes"| ExitSuccess
-CheckFailed -->|"No"| ExitFail
+Start -.-> Init
+Init -.-> Test1
+Test1 -.-> Test2
+Test2 -.-> Test3
+Test3 -.-> Test4
+Test4 -.-> Test5
+Test5 -.-> Test6
+Test6 -.-> Test7
+Test7 -.-> Summary
+Summary -.-> CheckFailed
+CheckFailed -.->|"Yes"| ExitSuccess
+CheckFailed -.->|"No"| ExitFail
 ```
 
 **Sources:** [test-all.sh L1-L226](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/test-all.sh#L1-L226)

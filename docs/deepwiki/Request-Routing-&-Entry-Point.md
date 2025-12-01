@@ -37,14 +37,14 @@ RestateHandler["restateHandler<br>(src/index.ts:7-9)"]
 RestateServices["Restate Services<br>ticketObject<br>seatMapObject<br>checkoutWorkflow"]
 MockResponse["Mock Payment Response<br>200/402/503"]
 
-Client -->|"POST /api/mock-payment"| Worker
-Client -->|"POST /Checkout/process"| Worker
-Client -->|"GET /Ticket/seat-1/get"| Worker
-Worker --> URLCheck
-URLCheck -->|"pathname === '/api/mock-payment'"| MockHandler
-URLCheck -->|"all other paths"| RestateHandler
-MockHandler --> MockResponse
-RestateHandler --> RestateServices
+Client -.->|"POST /api/mock-payment"| Worker
+Client -.->|"POST /Checkout/process"| Worker
+Client -.->|"GET /Ticket/seat-1/get"| Worker
+Worker -.-> URLCheck
+URLCheck -.->|"pathname === '/api/mock-payment'"| MockHandler
+URLCheck -.->|"all other paths"| RestateHandler
+MockHandler -.-> MockResponse
+RestateHandler -.-> RestateServices
 ```
 
 **Sources:** [src/index.ts L42-L50](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/index.ts#L42-L50)
@@ -67,11 +67,11 @@ CheckoutWf["checkoutWorkflow<br>(src/checkout.ts:6-50)<br>name: 'Checkout'"]
 SeatMapObj["seatMapObject<br>(src/game.ts:92-141)<br>name: 'SeatMap'"]
 Handler["restateHandler<br>Function: (request, env, ctx) => Response"]
 
-TicketObj --> Config
-CheckoutWf --> Config
-SeatMapObj --> Config
-SDK --> Config
-Config --> Handler
+TicketObj -.-> Config
+CheckoutWf -.-> Config
+SeatMapObj -.-> Config
+SDK -.-> Config
+Config -.-> Handler
 ```
 
 **Sources:** [src/index.ts L1-L9](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/index.ts#L1-L9)
@@ -123,12 +123,12 @@ RestateRoute["return restateHandler(request, env, ctx)<br>(src/index.ts:48)"]
 DirectEndpoint["Mock Payment Logic<br>No Restate involvement"]
 RestateManagedEndpoint["Restate Services<br>Durable execution"]
 
-FetchHandler --> ParseURL
-ParseURL --> CheckPath
-CheckPath -->|"true"| DirectRoute
-CheckPath -->|"false"| RestateRoute
-DirectRoute --> DirectEndpoint
-RestateRoute --> RestateManagedEndpoint
+FetchHandler -.-> ParseURL
+ParseURL -.-> CheckPath
+CheckPath -.->|"true"| DirectRoute
+CheckPath -.->|"false"| RestateRoute
+DirectRoute -.-> DirectEndpoint
+RestateRoute -.-> RestateManagedEndpoint
 ```
 
 **Sources:** [src/index.ts L42-L50](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/index.ts#L42-L50)
@@ -167,13 +167,13 @@ Logic["Routing Logic"]
 URL["URL parsing<br>(line 44)"]
 Conditional["Conditional routing<br>(line 45)"]
 
-Export --> Params
-Params --> Request
-Params --> Env
-Params --> Ctx
-Export --> Logic
-Logic --> URL
-Logic --> Conditional
+Export -.-> Params
+Params -.-> Request
+Params -.-> Env
+Params -.-> Ctx
+Export -.-> Logic
+Logic -.-> URL
+Logic -.-> Conditional
 ```
 
 **Sources:** [src/index.ts L42-L50](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/index.ts#L42-L50)
@@ -217,18 +217,18 @@ Response503["503 Gateway timeout<br>(lines 30-33)"]
 Response200["200 Success + transactionId<br>(lines 36-39)"]
 Response405["405 Method not allowed<br>(line 13)"]
 
-Request --> MethodCheck
-MethodCheck -->|"true"| Parse
-MethodCheck -->|"false"| Response405
-Parse --> Log
-Log --> Delay
-Delay --> CardCheck
-CardCheck --> Decline
-CardCheck --> Error
-CardCheck --> Success
-Decline --> Response402
-Error --> Response503
-Success --> Response200
+Request -.-> MethodCheck
+MethodCheck -.->|"true"| Parse
+MethodCheck -.->|"false"| Response405
+Parse -.-> Log
+Log -.-> Delay
+Delay -.-> CardCheck
+CardCheck -.-> Decline
+CardCheck -.-> Error
+CardCheck -.-> Success
+Decline -.-> Response402
+Error -.-> Response503
+Success -.-> Response200
 ```
 
 **Sources:** [src/index.ts L11-L40](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/index.ts#L11-L40)

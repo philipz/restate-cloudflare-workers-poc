@@ -49,10 +49,10 @@ Handlers["handlers: { reserve, confirm, release, get }"]
 State["Durable State<br>ctx.get/set"]
 Key["Object Key<br>(seatId)"]
 
-Definition --> Name
-Definition --> Handlers
-Handlers --> State
-Name -->|"Accessed via"| Key
+Definition -.-> Name
+Definition -.-> Handlers
+Handlers -.->|"Accessed via"| State
+Name -.-> Key
 ```
 
 Sources: [src/game.ts L15-L84](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/game.ts#L15-L84)
@@ -82,27 +82,27 @@ Handler1["Execute: reserve()<br>Update: RESERVED"]
 Handler2["Execute: reserve()<br>Read: RESERVED<br>Throw: TerminalError"]
 Handler3["Execute: reserve()<br>Read: RESERVED<br>Throw: TerminalError"]
 
-R1 --> Queue
-R2 --> Queue
-R3 --> Queue
-Dispatcher -->|"1st"| Handler1
-Dispatcher -->|"2nd"| Handler2
-Dispatcher -->|"3rd"| Handler3
+R1 -.-> Queue
+R2 -.-> Queue
+R3 -.-> Queue
+Dispatcher -.->|"1st"| Handler1
+Dispatcher -.-> Handler2
+Dispatcher -.->|"3rd"| Handler3
 
 subgraph subGraph2 ["Cloudflare Worker"]
     Instance
     Handler1
     Handler2
     Handler3
-    Handler1 --> Instance
-    Handler2 --> Instance
-    Handler3 --> Instance
+    Handler1 -.-> Instance
+    Handler2 -.-> Instance
+    Handler3 -.-> Instance
 end
 
 subgraph subGraph1 ["Restate Runtime"]
     Queue
     Dispatcher
-    Queue --> Dispatcher
+    Queue -.->|"2nd"| Dispatcher
 end
 
 subgraph subGraph0 ["Client Requests"]
@@ -268,14 +268,14 @@ E2["Execute R2<br>State: RESERVED (by User 1)<br>Result: TerminalError"]
 E3["Execute R3<br>State: RESERVED (by User 1)<br>Result: TerminalError"]
 EN["Execute R1000<br>State: RESERVED (by User 1)<br>Result: TerminalError"]
 
-C1 --> Q
-C2 --> Q
-C3 --> Q
-CN --> Q
-Q --> E1
-Q --> E2
-Q --> E3
-Q --> EN
+C1 -.-> Q
+C2 -.-> Q
+C3 -.-> Q
+CN -.-> Q
+Q -.-> E1
+Q -.-> E2
+Q -.-> E3
+Q -.-> EN
 
 subgraph subGraph2 ["Sequential Execution"]
     E1
@@ -350,9 +350,9 @@ sequenceDiagram
   participant (key: 'seat-50')
 
   Client->>SeatMap: "resetAll()"
-  note over SeatMap,(key: 'global'): "Reset local map state
+  note over SeatMap,(key: 'global'): "Reset local map state<br/>Lines 122-126"
   SeatMap->>SeatMap: "map[seat-1] = AVAILABLE
-  note over SeatMap,(key: 'global'): "Release all Ticket objects
+  note over SeatMap,(key: 'global'): "Release all Ticket objects<br/>Lines 129-131"
   SeatMap->>Ticket: ...
   Ticket-->>SeatMap: map[seat-50] = AVAILABLE"
   SeatMap->>(key: 'seat-2'): "ctx.objectClient(ticketObject, 'seat-1').release()"
@@ -430,8 +430,8 @@ subgraph subGraph0 ["Serialized (Same Key)"]
     S1
     S2
     S3
-    S1 --> S2
-    S2 --> S3
+    S1 -.-> S2
+    S2 -.-> S3
 end
 ```
 

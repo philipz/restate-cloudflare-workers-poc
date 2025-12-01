@@ -80,11 +80,14 @@ Frontend["Frontend Query<br>GET /SeatMap/global/get"]
 TicketObj["Ticket Objects<br>seat-1 to seat-50"]
 SelfAsync["SeatMap.resetAll<br>(Fire-and-forget)"]
 
-Checkout -->|"Update status"| Set
-Frontend -->|"Query state"| Get
-Set -->|"ctx.objectSendClient"| SelfAsync
-Reset -->|"await ctx.objectClient"| TicketObj
-SelfAsync -->|"Triggers"| Reset
+Checkout -.->|"Update status"| Set
+Frontend -.->|"Query state"| Get
+Set -.-> subGraph1
+subGraph1 -.->|"soldCount >= 50"| subGraph1
+subGraph1 -.->|"ctx.objectSendClient"| subGraph1
+Set -.-> SelfAsync
+Reset -.->|"await ctx.objectClient"| TicketObj
+SelfAsync -.->|"Triggers"| Reset
 
 subgraph subGraph3 ["Called Services"]
     TicketObj
@@ -98,9 +101,9 @@ end
 
 subgraph subGraph1 ["SeatMap Virtual Object (key: 'global')"]
     State
-    Set -->|"Read/Write"| State
-    Reset -->|"Read/Write"| State
-    Get -->|"Read only"| State
+    Set -.->|"Read/Write"| State
+    Reset -.->|"Read/Write"| State
+    Get -.->|"Read only"| State
 
 subgraph Handlers ["Handlers"]
     Set
@@ -301,13 +304,13 @@ T2["Ticket: seat-2<br>State: TicketState"]
 TN["Ticket: seat-50<br>State: TicketState"]
 SM["SeatMap State<br>map: Record"]
 
-CWReserve -->|"Authoritative state"| T1
-CWUpdate1 -->|"Mirror status"| SM
-CWConfirm -->|"Authoritative state"| T1
-CWUpdate2 -->|"Mirror status + trigger reset"| SM
-SM -->|"Bulk release on resetctx.objectClient().release()"| T1
-SM -->|"Bulk release on resetctx.objectClient().release()"| T2
-SM -->|"Bulk release on resetctx.objectClient().release()"| TN
+CWReserve -.->|"Authoritative state"| T1
+CWUpdate1 -.->|"Mirror status"| SM
+CWConfirm -.->|"Authoritative state"| T1
+CWUpdate2 -.->|"Mirror status + trigger reset"| SM
+SM -.->|"Bulk release on resetctx.objectClient().release()"| T1
+SM -.->|"Bulk release on resetctx.objectClient().release()"| T2
+SM -.->|"Bulk release on resetctx.objectClient().release()"| TN
 
 subgraph subGraph2 ["SeatMap Singleton (key: global)"]
     SM
@@ -371,17 +374,17 @@ E1["Execute set(seat-1, SOLD)<br>soldCount = 48"]
 E2["Execute set(seat-2, SOLD)<br>soldCount = 49"]
 E3["Execute set(seat-50, SOLD)<br>soldCount = 50<br>→ Trigger reset"]
 
-C1 --> Q
-C2 --> Q
-C3 --> Q
-Q -->|"Serialized by key"| E1
+C1 -.-> Q
+C2 -.-> Q
+C3 -.-> Q
+Q -.->|"Serialized by key"| E1
 
 subgraph subGraph2 ["SeatMap Execution (Sequential)"]
     E1
     E2
     E3
-    E1 --> E2
-    E2 --> E3
+    E1 -.-> E2
+    E2 -.-> E3
 end
 
 subgraph subGraph1 ["Restate Serialization Queue (key: global)"]

@@ -44,18 +44,20 @@ RestateCloud["Restate Cloud<br>201kb7y8wxs1nk6t81wyx88dn2q<br>.env.us.restate.cl
 IndexTS["src/index.ts<br>createEndpointHandler"]
 MockPayment["handleMockPayment<br>/api/mock-payment"]
 
-WebClient -->|"HTTP POST"| RestateCloud
-TestAll -->|"HTTP POST"| RestateLocal
-TestCloud -->|"HTTP POST + Auth"| RestateCloud
-LoadTestLocal -->|"HTTP POST"| RestateLocal
-LoadTest -->|"HTTP POST + Auth"| RestateCloud
-RestateLocal --> IndexTS
-RestateCloud -->|"Invoke Handler"| IndexTS
+WebClient -.->|"HTTP POST"| RestateCloud
+TestAll -.->|"HTTP POST"| RestateLocal
+TestCloud -.->|"HTTP POST + Auth"| RestateCloud
+LoadTestLocal -.->|"HTTP POST"| RestateLocal
+LoadTest -.->|"HTTP POST + Auth"| RestateCloud
+RestateLocal -.-> IndexTS
+RestateCloud -.->|"Invoke Handler"| IndexTS
 
 subgraph Workers ["Cloudflare Workers Execution Layer"]
     IndexTS
     MockPayment
-    IndexTS -->|"Route /api/mock-payment"| MockPayment
+    IndexTS -.->|"Route /api/mock-payment"| MockPayment
+    IndexTS -.->|"Bind services"| Services
+    Services -.->|"Registered at startup"| IndexTS
 
 subgraph Services ["Bound Services"]
     TicketObj
@@ -203,13 +205,16 @@ CheckoutFlow["Unsupported markdown: list"]
 Payment["processPayment<br>src/utils/payment_new.ts"]
 Email["sendEmail<br>src/utils/email.ts"]
 
-RestateHandler -->|"binds"| Ticket
-RestateHandler -->|"binds"| SeatMap
-RestateHandler --> Checkout
-CheckoutFlow -->|"ctx.objectClient"| TicketHandlers
-CheckoutFlow -->|"ctx.objectClient"| SeatMapHandlers
-CheckoutFlow -->|"ctx.run"| Payment
-CheckoutFlow -->|"ctx.run"| Email
+RestateHandler -.->|"binds"| Ticket
+RestateHandler -.->|"binds"| SeatMap
+RestateHandler -.->|"binds"| Checkout
+CheckoutFlow -.->|"ctx.objectClient"| TicketHandlers
+CheckoutFlow -.->|"ctx.objectClient"| SeatMapHandlers
+CheckoutFlow -.->|"ctx.run"| Payment
+CheckoutFlow -.->|"ctx.run"| Email
+SeatMapHandlers -.-> VirtualObjects
+VirtualObjects -.->|"auto-reset at 50 SOLDctx.objectSendClient"| VirtualObjects
+VirtualObjects -.->|"ctx.objectClientbulk release"| VirtualObjects
 
 subgraph Utils ["Utilities"]
     Payment
@@ -219,7 +224,7 @@ end
 subgraph Workflows ["Durable Workflows(Stateless Orchestration)"]
     Checkout
     CheckoutFlow
-    Checkout -->|"orchestrates"| CheckoutFlow
+    Checkout -.->|"orchestrates"| CheckoutFlow
 end
 
 subgraph VirtualObjects ["Virtual Objects(Actor Model - Serialized State)"]
@@ -229,19 +234,19 @@ subgraph VirtualObjects ["Virtual Objects(Actor Model - Serialized State)"]
     SeatMapState
     TicketHandlers
     SeatMapHandlers
-    Ticket -->|"manages"| TicketState
-    Ticket -->|"exposes"| TicketHandlers
-    SeatMap -->|"manages"| SeatMapState
-    SeatMap -->|"exposes"| SeatMapHandlers
-    SeatMapHandlers -->|"ctx.objectClientbulk release"| TicketHandlers
+    Ticket -.->|"manages"| TicketState
+    Ticket -.->|"exposes"| TicketHandlers
+    SeatMap -.->|"manages"| SeatMapState
+    SeatMap -.->|"exposes"| SeatMapHandlers
+    SeatMapHandlers -.-> TicketHandlers
 end
 
 subgraph EntryPoint ["Entry Point"]
     IndexHandler
     RestateHandler
     MockHandler
-    IndexHandler -->|"pathname check"| MockHandler
-    IndexHandler -->|"default"| RestateHandler
+    IndexHandler -.->|"pathname check"| MockHandler
+    IndexHandler -.->|"default"| RestateHandler
 end
 ```
 

@@ -55,9 +55,9 @@ TestScript["test-all.sh<br>→ localhost:8080"]
 Registration["Service Registration<br>→ localhost:9070"]
 Monitoring["Observability Tools<br>→ localhost:9090"]
 
-TestScript -->|"POST /Checkout/process"| RestateIngress
-Registration -->|"POST /deployments"| RestateAdmin
-Monitoring -->|"Prometheus metrics"| RestateMetrics
+TestScript -.->|"POST /Checkout/process"| RestateIngress
+Registration -.->|"POST /deployments"| RestateAdmin
+Monitoring -.->|"Prometheus metrics"| RestateMetrics
 
 subgraph subGraph1 ["Host Machine"]
     TestScript
@@ -138,9 +138,9 @@ RestateServer["Restate Server<br>localhost:8080"]
 CurlTest["curl commands<br>test-all.sh"]
 K6Load["k6 load-test-local.js"]
 
-RestateServer --> LocalWorker
-CurlTest -->|"POST /Checkout/process"| RestateServer
-K6Load -->|"Concurrent requests"| RestateServer
+RestateServer -.->|"Invoke handlers"| LocalWorker
+CurlTest -.->|"POST /Checkout/process"| RestateServer
+K6Load -.->|"Concurrent requests"| RestateServer
 
 subgraph subGraph2 ["Testing Tools"]
     CurlTest
@@ -155,8 +155,8 @@ subgraph subGraph0 ["Development Machine"]
     CodeEditor
     WranglerCLI
     LocalWorker
-    CodeEditor -->|"Save file"| WranglerCLI
-    WranglerCLI -->|"Hot reload"| LocalWorker
+    CodeEditor -.->|"Save file"| WranglerCLI
+    WranglerCLI -.->|"Hot reload"| LocalWorker
 end
 ```
 
@@ -265,19 +265,19 @@ V2["assert_contains response"]
 V3["curl POST /Ticket/{id}/get"]
 V4["assert_contains state"]
 
-T1 --> V1
-T2 --> V1
-T3 --> V1
-T5 --> V1
+T1 -.-> V1
+T2 -.-> V1
+T3 -.-> V1
+T5 -.-> V1
 
 subgraph subGraph1 ["Verification Steps"]
     V1
     V2
     V3
     V4
-    V1 --> V2
-    V2 --> V3
-    V3 --> V4
+    V1 -.-> V2
+    V2 -.-> V3
+    V3 -.-> V4
 end
 
 subgraph subGraph0 ["test-all.sh Script"]
@@ -371,15 +371,15 @@ D4["Unsupported markdown: list"]
 L1["Unsupported markdown: list"]
 L2["Unsupported markdown: list"]
 
-Start --> S1
-S4 --> D1
-D4 --> L1
-L2 --> D1
+Start -.-> S1
+S4 -.-> D1
+D4 -.-> L1
+L2 -.-> D1
 
 subgraph subGraph2 ["Load Testing"]
     L1
     L2
-    L1 --> L2
+    L1 -.-> L2
 end
 
 subgraph subGraph1 ["Iterative Development"]
@@ -387,10 +387,10 @@ subgraph subGraph1 ["Iterative Development"]
     D2
     D3
     D4
-    D1 --> D2
-    D2 --> D3
-    D3 --> D4
-    D4 --> D1
+    D1 -.-> D2
+    D2 -.-> D3
+    D3 -.-> D4
+    D4 -.-> D1
 end
 
 subgraph subGraph0 ["One-Time Setup"]
@@ -398,9 +398,9 @@ subgraph subGraph0 ["One-Time Setup"]
     S2
     S3
     S4
-    S1 --> S2
-    S2 --> S3
-    S3 --> S4
+    S1 -.-> S2
+    S2 -.-> S3
+    S3 -.-> S4
 end
 ```
 

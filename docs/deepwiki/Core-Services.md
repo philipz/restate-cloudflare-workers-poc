@@ -40,10 +40,10 @@ Checkout["Checkout<br>Service: checkoutWorkflow<br>Handler: process"]
 TicketState["TicketState<br>status: TicketStatus<br>reservedBy: string<br>reservedUntil: number"]
 MapState["map: Record<seatId, status>"]
 
-Ticket -->|"ctx.get/set('state')"| TicketState
-SeatMap -->|"ctx.get/set('map')"| MapState
-Checkout -->|"ctx.objectClient(ticketObject, seatId)"| Ticket
-Checkout -->|"ctx.objectClient(seatMapObject, 'global')"| SeatMap
+Ticket -.->|"ctx.get/set('state')"| TicketState
+SeatMap -.->|"ctx.get/set('map')"| MapState
+Checkout -.->|"ctx.objectClient(ticketObject, seatId)"| Ticket
+Checkout -.->|"ctx.objectClient(seatMapObject, 'global')"| SeatMap
 
 subgraph StateStorage ["Restate Durable State"]
     TicketState
@@ -57,7 +57,7 @@ end
 subgraph VirtualObjects ["Virtual Objects (Stateful Actors)"]
     Ticket
     SeatMap
-    SeatMap -->|"ctx.objectClient(ticketObject, seatId)"| Ticket
+    SeatMap -.->|"ctx.objectClient(ticketObject, seatId)"| Ticket
 end
 ```
 
@@ -93,11 +93,11 @@ CW["export const checkoutWorkflow"]
 TOType["export type TicketObject"]
 SMOType["export type SeatMapObject"]
 
-ObjectBuilder -->|"name: 'Ticket'handlers: {reserve, confirm, release, get}"| TO
-ObjectBuilder -->|"name: 'SeatMap'handlers: {set, resetAll, get}"| SMO
-ServiceBuilder -->|"name: 'Checkout'handlers: {process}"| CW
-TO -->|"typeof ticketObject"| TOType
-SMO -->|"typeof seatMapObject"| SMOType
+ObjectBuilder -.->|"name: 'Ticket'handlers: {reserve, confirm, release, get}"| TO
+ObjectBuilder -.->|"name: 'SeatMap'handlers: {set, resetAll, get}"| SMO
+ServiceBuilder -.->|"name: 'Checkout'handlers: {process}"| CW
+TO -.->|"typeof ticketObject"| TOType
+SMO -.->|"typeof seatMapObject"| SMOType
 
 subgraph TypeExports ["Exported Type Aliases"]
     TOType
@@ -145,7 +145,7 @@ sequenceDiagram
   note over Client,(seatMapObject): Workflow-to-Object Communication (Awaited RPC)
   Client->>Checkout Workflow: "process({ticketId, userId, paymentMethodId})"
   Checkout Workflow->>Ticket Object: "ctx.objectClient(ticketObject, ticketId).reserve(userId)"
-  note over Ticket Object,(ticketObject): "Serialized execution
+  note over Ticket Object,(ticketObject): "Serialized execution<br/>for this seatId"
   Ticket Object-->>Checkout Workflow: "true or TerminalError"
   Checkout Workflow->>SeatMap Object: "ctx.objectClient(seatMapObject, 'global').set({seatId, status: 'RESERVED'})"
   SeatMap Object-->>Checkout Workflow: "true"
@@ -156,9 +156,9 @@ sequenceDiagram
   SeatMap Object-->>Checkout Workflow: "true"
   note over Client,(seatMapObject): Object-to-Object Communication (Fire-and-Forget + Awaited)
   SeatMap Object->>SeatMap Object: "ctx.objectSendClient(seatMapObject, 'global').resetAll()"
-  note over SeatMap Object,(seatMapObject): "Async invocation
+  note over SeatMap Object,(seatMapObject): "Async invocation<br/>returns immediately"
   SeatMap Object->>Ticket Object: "ctx.objectClient(ticketObject, seatId).release()"
-  note over Ticket Object,(seatMapObject): "Inside resetAll handler
+  note over Ticket Object,(seatMapObject): "Inside resetAll handler<br/>awaited RPC call"
   Ticket Object-->>SeatMap Object: "true"
 ```
 

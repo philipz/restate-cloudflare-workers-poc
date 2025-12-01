@@ -29,7 +29,7 @@ CompatFlags["compatibility_flags = ['nodejs_compat']<br>Enable Node.js APIs"]
 Observability["[observability]<br>enabled = true<br>Cloudflare logging"]
 IndexTS["src/index.ts<br>createEndpointHandler<br>default export fetch"]
 
-Main --> IndexTS
+Main -.-> IndexTS
 
 subgraph subGraph4 ["Referenced Files"]
     IndexTS
@@ -37,11 +37,11 @@ end
 
 subgraph subGraph3 ["wrangler.toml Structure"]
     File
-    File --> Name
-    File --> Main
-    File -->|"References"| CompatDate
-    File --> CompatFlags
-    File --> Observability
+    File -.->|"References"| Name
+    File -.-> Main
+    File -.-> CompatDate
+    File -.-> CompatFlags
+    File -.-> Observability
 
 subgraph Monitoring ["Monitoring"]
     Observability
@@ -117,14 +117,14 @@ Util["util module<br>Utility functions"]
 Crypto["crypto module<br>Cryptographic operations"]
 RestateSDK["@restatedev/restate-sdk-cloudflare-workers<br>Requires Node.js APIs"]
 
-Config --> Buffer
-Config --> Process
-Config --> Util
-Config --> Crypto
-Buffer --> RestateSDK
-Process --> RestateSDK
-Util --> RestateSDK
-Crypto --> RestateSDK
+Config -.-> Buffer
+Config -.-> Process
+Config -.-> Util
+Config -.-> Crypto
+Buffer -.-> RestateSDK
+Process -.-> RestateSDK
+Util -.-> RestateSDK
+Crypto -.-> RestateSDK
 
 subgraph subGraph2 ["Restate SDK Requirements"]
     RestateSDK
@@ -202,11 +202,11 @@ WranglerDeploy["wrangler deploy<br>Builds & publishes to production"]
 WranglerDev["wrangler dev<br>Local development server"]
 Config["wrangler.toml<br>All settings"]
 
-Deploy --> WranglerDeploy
-Dev --> WranglerDev
-Start --> WranglerDev
-WranglerDeploy -->|"Reads"| Config
-WranglerDev -->|"Reads"| Config
+Deploy -.-> WranglerDeploy
+Dev -.-> WranglerDev
+Start -.-> WranglerDev
+WranglerDeploy -.->|"Reads"| Config
+WranglerDev -.->|"Reads"| Config
 
 subgraph subGraph2 ["Configuration Source"]
     Config

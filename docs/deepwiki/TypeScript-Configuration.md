@@ -45,16 +45,16 @@ TSC["tsc --noEmit<br>Type validation only"]
 Wrangler["wrangler dev/deploy<br>Uses esbuild internally"]
 Bundle["Bundled JavaScript<br>Output for Workers runtime"]
 
-TS -->|"include pattern"| TSConfig
-TSConfig -->|"Validates"| Editor
-TSConfig -->|"Validates"| TSC
-TS -->|"Transpiled by"| Wrangler
-WorkerTypes -->|"Type definitions onlyNot in runtime"| Bundle
+TS -.->|"include pattern"| TSConfig
+TSConfig -.->|"Validates"| Editor
+TSConfig -.->|"Validates"| TSC
+TS -.->|"Transpiled by"| Wrangler
+WorkerTypes -.->|"Type definitions onlyNot in runtime"| Bundle
 
 subgraph subGraph3 ["Build Pipeline"]
     Wrangler
     Bundle
-    Wrangler -->|"Produces"| Bundle
+    Wrangler -.->|"Produces"| Bundle
 end
 
 subgraph subGraph2 ["Development Tools"]
@@ -66,8 +66,8 @@ subgraph subGraph1 ["Type System"]
     TSConfig
     WorkerTypes
     ESNext
-    TSConfig -->|"types option"| WorkerTypes
-    TSConfig -->|"lib option"| ESNext
+    TSConfig -.->|"types option"| WorkerTypes
+    TSConfig -.->|"lib option"| ESNext
 end
 
 subgraph subGraph0 ["Source Files"]
@@ -148,14 +148,14 @@ Index["src/index.ts<br>ExportedHandler"]
 Game["src/game.ts<br>ObjectContext<'ticket'>"]
 Checkout["src/checkout.ts<br>WorkflowContext"]
 
-BuiltIn -->|"Provides"| Index
-Workers -->|"types: [...] option"| Index
-Restate -->|"dependencies in package.json"| Index
-Workers -->|"Types"| Index
-Restate -->|"Provides"| Game
-Restate -->|"Provides"| Checkout
-BuiltIn -->|"Types"| Game
-BuiltIn -->|"Types"| Checkout
+BuiltIn -.->|"Provides"| Index
+Workers -.->|"types: [...] option"| Index
+Restate -.->|"dependencies in package.json"| Index
+Workers -.->|"Types"| Index
+Restate -.->|"Provides"| Game
+Restate -.->|"Provides"| Checkout
+BuiltIn -.->|"Types"| Game
+BuiltIn -.->|"Types"| Checkout
 
 subgraph subGraph1 ["Application Code"]
     Index
@@ -295,18 +295,18 @@ PaymentTS["src/utils/payment_new.ts"]
 EmailTS["src/utils/email.ts"]
 TSConfig["tsconfig.json<br>include: src/**/*.ts"]
 
-Root -->|"Matches"| Src
-Src -->|"Matches"| GameTS
-Src --> CheckoutTS
-Src -->|"Matches"| IndexTS
-Src --> UtilsDir
-UtilsDir -->|"Matches"| PaymentTS
-UtilsDir -->|"Matches"| EmailTS
-TSConfig --> GameTS
-TSConfig --> CheckoutTS
-TSConfig --> IndexTS
-TSConfig --> PaymentTS
-TSConfig --> EmailTS
+Root -.->|"Matches"| Src
+Src -.->|"Matches"| GameTS
+Src -.-> CheckoutTS
+Src -.->|"Matches"| IndexTS
+Src -.-> UtilsDir
+UtilsDir -.->|"Matches"| PaymentTS
+UtilsDir -.->|"Matches"| EmailTS
+TSConfig -.-> GameTS
+TSConfig -.-> CheckoutTS
+TSConfig -.-> IndexTS
+TSConfig -.-> PaymentTS
+TSConfig -.-> EmailTS
 ```
 
 **Diagram: File Inclusion Pattern**

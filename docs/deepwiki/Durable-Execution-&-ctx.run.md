@@ -45,10 +45,10 @@ subgraph subGraph1 ["Restate Durable Execution"]
     DE3
     DE4
     DE5
-    DE1 --> DE2
-    DE2 --> DE3
-    DE3 --> DE4
-    DE4 --> DE5
+    DE1 -.-> DE2
+    DE2 -.-> DE3
+    DE3 -.-> DE4
+    DE4 -.-> DE5
 end
 
 subgraph subGraph0 ["Traditional Stateless Worker"]
@@ -56,9 +56,9 @@ subgraph subGraph0 ["Traditional Stateless Worker"]
     SW2
     SW3
     SW4
-    SW1 --> SW2
-    SW2 --> SW3
-    SW3 --> SW4
+    SW1 -.-> SW2
+    SW2 -.-> SW3
+    SW3 -.-> SW4
 end
 ```
 
@@ -177,24 +177,24 @@ Success["card_success → 500ms delay → success"]
 Decline["card_decline → throw error"]
 Error["card_error → throw timeout error"]
 
-L24 --> ProcessPayment
+L24 -.-> ProcessPayment
 
 subgraph src/utils/payment_new.ts ["src/utils/payment_new.ts"]
     ProcessPayment
     Success
     Decline
     Error
-    ProcessPayment --> Success
-    ProcessPayment --> Decline
-    ProcessPayment --> Error
+    ProcessPayment -.-> Success
+    ProcessPayment -.-> Decline
+    ProcessPayment -.-> Error
 end
 
 subgraph src/checkout.ts ["src/checkout.ts"]
     L22
     L24
     L26
-    L22 --> L24
-    L24 --> L26
+    L22 -.-> L24
+    L24 -.-> L26
 end
 ```
 
@@ -295,17 +295,17 @@ JournalRetryable["Journal: RETRYABLE_ERROR<br>message: 'Gateway timeout'"]
 Backoff["Restate schedules retry<br>Exponential backoff:<br>1s, 2s, 4s, 8s..."]
 RetryLoop["Replay workflow<br>Skip completed steps<br>Re-execute ctx.run"]
 
-Start --> Execute
-Execute --> Success
-Execute --> TerminalErr
-Execute --> RetryableErr
-Success --> JournalSuccess
-TerminalErr --> JournalTerminal
-RetryableErr --> JournalRetryable
-JournalTerminal --> StopRetry
-JournalRetryable --> Backoff
-Backoff --> RetryLoop
-RetryLoop --> Execute
+Start -.-> Execute
+Execute -.-> Success
+Execute -.-> TerminalErr
+Execute -.-> RetryableErr
+Success -.-> JournalSuccess
+TerminalErr -.-> JournalTerminal
+RetryableErr -.-> JournalRetryable
+JournalTerminal -.-> StopRetry
+JournalRetryable -.-> Backoff
+Backoff -.-> RetryLoop
+RetryLoop -.-> Execute
 ```
 
 **Diagram: Error Handling in ctx.run**
@@ -375,11 +375,11 @@ subgraph subGraph0 ["Journaled Operations in src/checkout.ts"]
     Confirm
     SetSold
     Email
-    Reserve --> SetReserved
-    SetReserved --> Payment
-    Payment --> Confirm
-    Confirm --> SetSold
-    SetSold --> Email
+    Reserve -.-> SetReserved
+    SetReserved -.-> Payment
+    Payment -.-> Confirm
+    Confirm -.-> SetSold
+    SetSold -.-> Email
 end
 ```
 

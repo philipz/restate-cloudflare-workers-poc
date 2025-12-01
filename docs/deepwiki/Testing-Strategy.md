@@ -41,33 +41,33 @@ Checkout["Checkout Workflow<br>POST /Checkout/process<br>Saga orchestration"]
 Ticket["Ticket Virtual Object<br>POST /Ticket/{id}/get<br>State management"]
 SeatMap["SeatMap Virtual Object<br>Aggregate view"]
 
-TestAll -->|"HTTP POSTNo auth required"| LocalRestate
-LoadLocal -->|"HTTP POSTNo auth required"| LocalRestate
-TestCloud -->|"HTTP POSTBearer token auth"| CloudRestate
-LoadCloud -->|"HTTP POSTBearer token auth"| CloudRestate
-LocalWorker -->|"Routes to"| Checkout
-LocalWorker -->|"Routes to"| Ticket
-CloudWorker -->|"Routes to"| Checkout
-CloudWorker -->|"ctx.objectClient"| Ticket
+TestAll -.->|"HTTP POSTNo auth required"| LocalRestate
+LoadLocal -.->|"HTTP POSTNo auth required"| LocalRestate
+TestCloud -.->|"HTTP POSTBearer token auth"| CloudRestate
+LoadCloud -.->|"HTTP POSTBearer token auth"| CloudRestate
+LocalWorker -.->|"Routes to"| Checkout
+LocalWorker -.->|"Routes to"| Ticket
+CloudWorker -.->|"Routes to"| Checkout
+CloudWorker -.->|"ctx.objectClient"| Ticket
 
 subgraph subGraph3 ["Services Under Test"]
     Checkout
     Ticket
     SeatMap
-    Checkout --> Ticket
-    Checkout -->|"ctx.objectClient"| SeatMap
+    Checkout -.->|"Routes to"| Ticket
+    Checkout -.->|"ctx.objectClient"| SeatMap
 end
 
 subgraph subGraph2 ["Test Environment: Cloud"]
     CloudRestate
     CloudWorker
-    CloudRestate -->|"Invoke"| CloudWorker
+    CloudRestate -.->|"Invoke"| CloudWorker
 end
 
 subgraph subGraph1 ["Test Environment: Local"]
     LocalRestate
     LocalWorker
-    LocalRestate -->|"Invoke"| LocalWorker
+    LocalRestate -.->|"Invoke"| LocalWorker
 end
 
 subgraph subGraph0 ["Test Execution Layer"]
@@ -111,21 +111,21 @@ GetState["Ticket.get()<br>src/game.ts:78-87"]
 ProcessPayment["processPayment()<br>src/utils/payment_new.ts"]
 CheckoutProcess["Checkout.process()<br>src/checkout.ts:26-88"]
 
-S1 -->|"Tests state check in"| Reserve
-S1 -->|"Triggers"| ProcessPayment
-S1 -->|"Tests concurrency in"| Confirm
-S2 -->|"Tests serialization in"| Reserve
-S2 -->|"Triggers"| ProcessPayment
-S2 -->|"Validates"| Release
-S2 -->|"Validates"| CheckoutProcess
-S3 --> Reserve
-S3 --> Reserve
-S4 --> GetState
-S5 --> Reserve
-S5 -->|"Validates error handling in"| CheckoutProcess
-S6 -->|"Tests compensation in"| ProcessPayment
-S6 -->|"Validates"| Release
-S7 -->|"Stress tests"| CheckoutProcess
+S1 -.->|"Tests state check in"| Reserve
+S1 -.->|"Triggers"| ProcessPayment
+S1 -.->|"Tests concurrency in"| Confirm
+S2 -.->|"Tests serialization in"| Reserve
+S2 -.->|"Triggers"| ProcessPayment
+S2 -.->|"Validates"| Release
+S2 -.->|"Validates"| CheckoutProcess
+S3 -.->|"Validates"| Reserve
+S3 -.-> Reserve
+S4 -.->|"Validates"| GetState
+S5 -.-> Reserve
+S5 -.->|"Validates error handling in"| CheckoutProcess
+S6 -.->|"Tests compensation in"| ProcessPayment
+S6 -.->|"Validates"| Release
+S7 -.->|"Stress tests"| CheckoutProcess
 
 subgraph subGraph1 ["System Components"]
     Reserve
@@ -297,11 +297,11 @@ subgraph subGraph1 ["Cloud Deployment Cycle"]
     CC3
     CC4
     CC5
-    CC1 --> CC2
-    CC2 --> CC3
-    CC3 --> CC4
-    CC3 --> CC5
-    CC5 -->|"Validate at scale"| CC1
+    CC1 -.-> CC2
+    CC2 -.-> CC3
+    CC3 -.-> CC4
+    CC3 -.->|"Validate at scale"| CC5
+    CC5 -.-> CC1
 end
 
 subgraph subGraph0 ["Local Development Cycle"]
@@ -310,11 +310,11 @@ subgraph subGraph0 ["Local Development Cycle"]
     LC3
     LC4
     LC5
-    LC1 --> LC2
-    LC2 --> LC3
-    LC3 -->|"Iterate quickly"| LC4
-    LC3 --> LC5
-    LC4 --> LC2
+    LC1 -.->|"Iterate quickly"| LC2
+    LC2 -.-> LC3
+    LC3 -.-> LC4
+    LC3 -.-> LC5
+    LC4 -.-> LC2
 end
 ```
 

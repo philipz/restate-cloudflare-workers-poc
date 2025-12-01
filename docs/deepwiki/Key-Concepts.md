@@ -103,8 +103,8 @@ Instance["Ticket Virtual Object Instance<br>ctx.get/ctx.set"]
 note1["Race condition possible<br>Requires SELECT FOR UPDATE"]
 note2["Race condition impossible<br>Automatic serialization"]
 
-DB --> note1
-Instance --> note2
+DB -.-> note1
+Instance -.-> note2
 
 subgraph subGraph1 ["Virtual Object (Stateful)"]
     VO1
@@ -112,10 +112,10 @@ subgraph subGraph1 ["Virtual Object (Stateful)"]
     VO3
     Queue
     Instance
-    VO1 --> Queue
-    VO2 -->|"sequential execution"| Queue
-    VO3 --> Queue
-    Queue --> Instance
+    VO1 -.-> Queue
+    VO2 -.->|"sequential execution"| Queue
+    VO3 -.-> Queue
+    Queue -.-> Instance
 end
 
 subgraph subGraph0 ["Regular Service (Stateless)"]
@@ -123,9 +123,9 @@ subgraph subGraph0 ["Regular Service (Stateless)"]
     RS2
     RS3
     DB
-    RS1 -->|"concurrent access"| DB
-    RS2 -->|"concurrent access"| DB
-    RS3 -->|"concurrent access"| DB
+    RS1 -.->|"concurrent access"| DB
+    RS2 -.->|"concurrent access"| DB
+    RS3 -.->|"concurrent access"| DB
 end
 ```
 
@@ -230,8 +230,8 @@ sequenceDiagram
   Cloudflare Worker-->>Restate Server: ctx.run("process-payment") started
   note over Client,Payment Gateway: Replay Execution
   Restate Server->>Cloudflare Worker: POST /charge
-  note over Cloudflare Worker,(Execution): Replay: Skip reserve()
-  note over Cloudflare Worker,(Execution): Replay: Find ctx.run("process-payment")
+  note over Cloudflare Worker,(Execution): Replay: Skip reserve()<br/>(already in journal)
+  note over Cloudflare Worker,(Execution): Replay: Find ctx.run("process-payment")<br/>result not in journal
   Cloudflare Worker->>Payment Gateway: Connection lost
   Payment Gateway-->>Cloudflare Worker: Invoke with journal entries 1-2
   Cloudflare Worker->>Restate Server: POST /charge (retry)
@@ -277,16 +277,16 @@ NoRetry["Stop workflow<br>propagate error<br>(no retry)"]
 Retry["Restate schedules retry<br>with exponential backoff"]
 Return["Return result<br>to workflow code"]
 
-Start --> CheckJournal
-CheckJournal -->|"Yes"| UseCache
-CheckJournal -->|"No"| Execute
-Execute --> Success
-Success -->|"Yes"| WriteJournal
-Success -->|"No"| ErrorType
-ErrorType -->|"TerminalError"| NoRetry
-ErrorType -->|"Regular Error"| Retry
-WriteJournal --> Return
-UseCache --> Return
+Start -.-> CheckJournal
+CheckJournal -.->|"Yes"| UseCache
+CheckJournal -.->|"No"| Execute
+Execute -.-> Success
+Success -.->|"Yes"| WriteJournal
+Success -.->|"No"| ErrorType
+ErrorType -.->|"TerminalError"| NoRetry
+ErrorType -.->|"Regular Error"| Retry
+WriteJournal -.-> Return
+UseCache -.-> Return
 ```
 
 **Sources:** [src/checkout.ts L22-L28](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L22-L28)
@@ -369,17 +369,17 @@ CompensateRelease["Compensation:<br>ctx.objectClient.release()<br>[src/checkout.
 CompensateMap["Compensation:<br>Set SeatMap to AVAILABLE<br>[src/checkout.ts:33]"]
 ThrowError["Throw TerminalError<br>'Payment failed'<br>[src/checkout.ts:34]"]
 
-Start --> Reserve
-Reserve --> UpdateMap1
-UpdateMap1 --> TryPayment
-TryPayment --> PaymentResult
-PaymentResult -->|"Success"| Confirm
-PaymentResult -->|"Failure"| CompensateRelease
-Confirm --> UpdateMap2
-UpdateMap2 --> SendEmail
-SendEmail --> Success
-CompensateRelease --> CompensateMap
-CompensateMap --> ThrowError
+Start -.-> Reserve
+Reserve -.-> UpdateMap1
+UpdateMap1 -.-> TryPayment
+TryPayment -.-> PaymentResult
+PaymentResult -.->|"Success"| Confirm
+PaymentResult -.->|"Failure"| CompensateRelease
+Confirm -.-> UpdateMap2
+UpdateMap2 -.-> SendEmail
+SendEmail -.-> Success
+CompensateRelease -.-> CompensateMap
+CompensateMap -.-> ThrowError
 ```
 
 **Sources:** [src/checkout.ts L9-L49](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L9-L49)
@@ -456,13 +456,13 @@ SetReserved["set({seatId, status: 'RESERVED'})<br>[src/game.ts:95-117]"]
 SetSold["set({seatId, status: 'SOLD'})"]
 SetAvailable["set({seatId, status: 'AVAILABLE'})"]
 
-Start -->|"ctx.objectClient"| Reserve
-Reserve --> SetReserved
-SetReserved -->|"Yes"| Decision
-Complete -->|"ctx.objectClient"| Confirm
-Confirm --> SetSold
-Compensate -->|"ctx.objectClient"| Release
-Release --> SetAvailable
+Start -.->|"ctx.objectClient"| Reserve
+Reserve -.-> SetReserved
+SetReserved -.->|"Yes"| Decision
+Complete -.->|"ctx.objectClient"| Confirm
+Confirm -.-> SetSold
+Compensate -.-> Release
+Release -.-> SetAvailable
 
 subgraph subGraph2 ["SeatMap Virtual Object (global)"]
     SetReserved
@@ -481,8 +481,8 @@ subgraph subGraph0 ["Checkout Workflow (Orchestrator)"]
     Decision
     Compensate
     Complete
-    Decision -->|"No"| Complete
-    Decision --> Compensate
+    Decision -.->|"No"| Complete
+    Decision -.->|"ctx.objectClient"| Compensate
 end
 ```
 

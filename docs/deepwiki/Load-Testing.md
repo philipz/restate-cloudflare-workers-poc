@@ -35,17 +35,17 @@ RandomSeat["Random Seat Selection<br>seat-1 to seat-50"]
 PaymentDist["Payment Outcome Distribution<br>80% success / 10% decline / 10% error"]
 UniqueUser["Unique User IDs<br>user-VU-ITER"]
 
-EnvVars -->|"HTTP POST /Checkout/process"| K6
-LocalScript --> Options
-CloudScript --> Options
-LocalScript --> LocalRestate
-CloudScript -->|"HTTP POST /Checkout/process+ Bearer Token"| CloudRestate
-LocalScript --> RandomSeat
-LocalScript --> PaymentDist
-LocalScript --> UniqueUser
-CloudScript --> RandomSeat
-CloudScript --> PaymentDist
-CloudScript --> UniqueUser
+EnvVars -.->|"HTTP POST /Checkout/process"| K6
+LocalScript -.-> Options
+CloudScript -.-> Options
+LocalScript -.-> LocalRestate
+CloudScript -.-> CloudRestate
+LocalScript -.-> RandomSeat
+LocalScript -.-> PaymentDist
+LocalScript -.-> UniqueUser
+CloudScript -.-> RandomSeat
+CloudScript -.-> PaymentDist
+CloudScript -.-> UniqueUser
 
 subgraph subGraph4 ["Traffic Generation"]
     RandomSeat
@@ -56,13 +56,13 @@ end
 subgraph subGraph3 ["Cloud Environment"]
     CloudRestate
     CloudWorker
-    CloudRestate --> CloudWorker
+    CloudRestate -.-> CloudWorker
 end
 
 subgraph subGraph2 ["Local Environment"]
     LocalRestate
     LocalWorker
-    LocalRestate --> LocalWorker
+    LocalRestate -.-> LocalWorker
 end
 
 subgraph Configuration ["Configuration"]
@@ -74,8 +74,8 @@ subgraph subGraph0 ["Test Orchestration"]
     K6
     LocalScript
     CloudScript
-    K6 --> LocalScript
-    K6 --> CloudScript
+    K6 -.-> LocalScript
+    K6 -.->|"HTTP POST /Checkout/process+ Bearer Token"| CloudScript
 end
 ```
 
@@ -138,8 +138,8 @@ RampUp["Ramp Up<br>10s → VUS users"]
 Sustain["Sustained Load<br>DURATION @ VUS users"]
 RampDown["Ramp Down<br>10s → 0 users"]
 
-RampUp --> Sustain
-Sustain --> RampDown
+RampUp -.-> Sustain
+Sustain -.-> RampDown
 ```
 
 **Sources:** [load-test.js L5-L13](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/load-test.js#L5-L13)

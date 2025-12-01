@@ -54,30 +54,30 @@ Worker["nexus-poc.philipz.workers.dev<br>Registered Service"]
 Checkout["Checkout Workflow"]
 Ticket["Ticket Virtual Object"]
 
-TestScript -->|"HTTPS + Bearer Token"| Ingress
-RestateRuntime -->|"Invokes"| Worker
+TestScript -.->|"HTTPS + Bearer Token"| Ingress
+RestateRuntime -.->|"Invokes"| Worker
 
 subgraph subGraph2 ["Cloudflare Workers Platform"]
     Worker
     Checkout
     Ticket
-    Worker -->|"Routes"| Checkout
-    Worker -->|"Routes"| Ticket
-    Checkout -->|"Uses"| Ticket
+    Worker -.->|"Routes"| Checkout
+    Worker -.->|"Routes"| Ticket
+    Checkout -.->|"Uses"| Ticket
 end
 
 subgraph subGraph1 ["Restate Cloud - nexus-poc Environment"]
     Ingress
     AuthLayer
     RestateRuntime
-    Ingress -->|"Validates"| AuthLayer
-    AuthLayer -->|"Authorized"| RestateRuntime
+    Ingress -.->|"Validates"| AuthLayer
+    AuthLayer -.->|"Authorized"| RestateRuntime
 end
 
 subgraph subGraph0 ["Test Execution Environment"]
     TestScript
     EnvFile
-    TestScript -->|"Reads token"| EnvFile
+    TestScript -.->|"Reads token"| EnvFile
 end
 ```
 
@@ -376,16 +376,16 @@ subgraph subGraph1 ["Cloud Testing (test-cloud.sh)"]
     CloudScript
     CloudRestate
     CloudWorker
-    CloudScript -->|"HTTPS + Bearer token"| CloudRestate
-    CloudRestate -->|"Invokes"| CloudWorker
+    CloudScript -.->|"HTTPS + Bearer token"| CloudRestate
+    CloudRestate -.->|"Invokes"| CloudWorker
 end
 
 subgraph subGraph0 ["Local Testing (test-all.sh)"]
     LocalScript
     LocalRestate
     LocalWorker
-    LocalScript -->|"HTTP (no auth)"| LocalRestate
-    LocalRestate -->|"Invokes"| LocalWorker
+    LocalScript -.->|"HTTP (no auth)"| LocalRestate
+    LocalRestate -.->|"Invokes"| LocalWorker
 end
 ```
 

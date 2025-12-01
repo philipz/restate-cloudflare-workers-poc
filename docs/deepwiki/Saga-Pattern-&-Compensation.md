@@ -53,7 +53,7 @@ sequenceDiagram
   participant Email Service
   participant (sendEmail)
 
-  note over Checkout Workflow,(checkoutWorkflow): "ctx.objectClient
+  note over Checkout Workflow,(checkoutWorkflow): "ctx.objectClient<br/>(ticketObject, ticketId)"
   Checkout Workflow->>Ticket Virtual Object: "reserve(userId)"
   Ticket Virtual Object->>Ticket Virtual Object: "state.status = 'RESERVED'
   Ticket Virtual Object-->>Checkout Workflow: state.reservedBy = userId
@@ -102,7 +102,7 @@ sequenceDiagram
   note over Checkout Workflow,(checkoutWorkflow): "ctx.run('process-payment', ...)"
   Checkout Workflow->>Payment Gateway: "processPayment(100, 'card_decline')"
   Payment Gateway-->>Checkout Workflow: "Error: Payment declined"
-  note over Checkout Workflow,(checkoutWorkflow): "catch block triggered
+  note over Checkout Workflow,(checkoutWorkflow): "catch block triggered<br/>Begin compensation"
   Checkout Workflow->>Ticket Virtual Object: "release()"
   Ticket Virtual Object->>Ticket Virtual Object: "state.status = 'AVAILABLE'
   Ticket Virtual Object-->>Checkout Workflow: state.reservedBy = null
@@ -286,18 +286,18 @@ Failure["Throw: TerminalError<br>'Payment failed'"]
 End1["[*] Success"]
 End2["[*] Failure"]
 
-Start --> Reserve
-Reserve --> ViewUpdate1
-ViewUpdate1 --> Payment
-Payment -->|"Success"| Confirm
-Payment -->|"Failure(TerminalError thrown)"| CompRelease
-Confirm --> ViewUpdate2
-ViewUpdate2 --> Email
-Email --> Success
-CompRelease --> CompView
-CompView --> Failure
-Success --> End1
-Failure --> End2
+Start -.-> Reserve
+Reserve -.-> ViewUpdate1
+ViewUpdate1 -.-> Payment
+Payment -.->|"Success"| Confirm
+Payment -.->|"Failure(TerminalError thrown)"| CompRelease
+Confirm -.-> ViewUpdate2
+ViewUpdate2 -.-> Email
+Email -.-> Success
+CompRelease -.-> CompView
+CompView -.-> Failure
+Success -.-> End1
+Failure -.-> End2
 ```
 
 **Sources:** [src/checkout.ts L9-L48](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L9-L48)

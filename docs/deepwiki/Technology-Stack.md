@@ -58,17 +58,17 @@ Run["ctx.run"]
 Sleep["ctx.sleep"]
 Awakeable["ctx.awakeable"]
 
-IndexTS --> SDKExports
-GameTS --> SDKExports
-CheckoutTS --> SDKExports
-CheckoutTS --> ObjClient
-CheckoutTS --> Run
-GameTS --> ObjSendClient
-SDKCore --> ObjClient
-SDKCore --> ObjSendClient
-SDKCore --> Run
-SDKCore --> Sleep
-SDKCore --> Awakeable
+IndexTS -.-> SDKExports
+GameTS -.-> SDKExports
+CheckoutTS -.-> SDKExports
+CheckoutTS -.-> ObjClient
+CheckoutTS -.-> Run
+GameTS -.-> ObjSendClient
+SDKCore -.-> ObjClient
+SDKCore -.-> ObjSendClient
+SDKCore -.-> Run
+SDKCore -.-> Sleep
+SDKCore -.-> Awakeable
 
 subgraph subGraph2 ["Runtime Context APIs"]
     ObjClient
@@ -81,7 +81,7 @@ end
 subgraph subGraph1 ["Restate SDK (@restatedev/restate-sdk-cloudflare-workers)"]
     SDKExports
     SDKCore
-    SDKExports --> SDKCore
+    SDKExports -.-> SDKCore
 end
 
 subgraph subGraph0 ["Application Code"]
@@ -169,24 +169,24 @@ Bundle["Bundled Worker<br>index.js"]
 Deploy["Cloudflare Workers<br>nexus-poc.philipz.workers.dev"]
 Local["Local Server<br>localhost:8787"]
 
-TS --> Bundler
-Config --> Bundler
-Bundler -->|"wrangler deploy"| Bundle
-Runtime --> Local
+TS -.->|"wrangler dev"| Bundler
+Config -.-> Bundler
+Bundler -.->|"wrangler deploy"| Bundle
+Runtime -.-> Local
 
 subgraph Output ["Output"]
     Bundle
     Deploy
     Local
-    Bundle --> Deploy
+    Bundle -.-> Deploy
 end
 
 subgraph subGraph1 ["Wrangler CLI (v4.51.0)"]
     Bundler
     Runtime
     LocalDev
-    Bundler -->|"wrangler dev"| LocalDev
-    LocalDev --> Runtime
+    Bundler -.-> LocalDev
+    LocalDev -.-> Runtime
 end
 
 subgraph subGraph0 ["Source Files"]
@@ -350,23 +350,23 @@ CFWorkers["Cloudflare Workers<br>nexus-poc.philipz.workers.dev"]
 RestateCloud["Restate Cloud<br>nexus-poc environment"]
 RestateLocal["Restate Server<br>localhost:8080"]
 
-SrcIndex --> TS
-SrcGame --> TS
-SrcCheckout --> TS
-SrcUtils --> TS
-SrcIndex --> RestateSDK
-SrcGame --> RestateSDK
-SrcCheckout --> RestateSDK
-Wrangler -->|"registered with"| CFWorkers
-Docker -->|"tests"| RestateLocal
-K6 -->|"runs"| RestateCloud
-K6 --> RestateLocal
+SrcIndex -.-> TS
+SrcGame -.-> TS
+SrcCheckout -.-> TS
+SrcUtils -.-> TS
+SrcIndex -.-> RestateSDK
+SrcGame -.-> RestateSDK
+SrcCheckout -.-> RestateSDK
+Wrangler -.->|"registered with"| CFWorkers
+Docker -.->|"tests"| RestateLocal
+K6 -.-> RestateCloud
+K6 -.-> RestateLocal
 
 subgraph subGraph5 ["Deployment Platforms"]
     CFWorkers
     RestateCloud
     RestateLocal
-    CFWorkers -->|"tests"| RestateCloud
+    CFWorkers -.->|"runs"| RestateCloud
 end
 
 subgraph subGraph4 ["Testing Tools"]
@@ -379,22 +379,22 @@ subgraph subGraph3 ["Build & Development Tools"]
     ESBuild
     Miniflare
     Workerd
-    Wrangler --> ESBuild
-    Wrangler -->|"dev"| Miniflare
-    Miniflare -->|"deploy"| Workerd
-    Wrangler --> Workerd
+    Wrangler -.-> ESBuild
+    Wrangler -.->|"dev"| Miniflare
+    Miniflare -.->|"deploy"| Workerd
+    Wrangler -.->|"tests"| Workerd
 end
 
 subgraph subGraph2 ["Runtime Dependencies"]
     RestateSDK
     RestateCore
-    RestateSDK --> RestateCore
+    RestateSDK -.-> RestateCore
 end
 
 subgraph subGraph1 ["Language & Type System"]
     TS
     WorkersTypes
-    TS --> WorkersTypes
+    TS -.-> WorkersTypes
 end
 
 subgraph subGraph0 ["Source Code Layer"]

@@ -1,4 +1,4 @@
-# philipz-restate-cloudflare-workers-poc-DeepWiki-philipz-restate-cloudflare-workers-poc-DeepWiki
+# philipz-restate-cloudflare-workers-poc-DeepWiki
 
 ## Content Index
 

@@ -69,14 +69,14 @@ EmailFn["sendEmail()<br>(from src/utils/email.ts)"]
 TicketClient["ctx.objectClient<br>(ticketObject, ticketId)"]
 SeatMapClient["ctx.objectClient<br>(seatMapObject, 'global')"]
 
-ProcessHandler --> TicketClient
-ProcessHandler --> SeatMapClient
-ProcessHandler --> PaymentFn
-ProcessHandler --> EmailFn
-TicketClient -->|"Invokes"| TicketObj
-SeatMapClient -->|"Invokes"| SeatMapObj
-TicketObj -->|"Imported as type"| TicketClient
-SeatMapObj -->|"Imported as type"| SeatMapClient
+ProcessHandler -.->|"Invokes"| TicketClient
+ProcessHandler -.->|"Imported as type"| SeatMapClient
+ProcessHandler -.-> PaymentFn
+ProcessHandler -.-> EmailFn
+TicketClient -.->|"Invokes"| TicketObj
+SeatMapClient -.->|"Imported as type"| SeatMapObj
+TicketObj -.-> TicketClient
+SeatMapObj -.-> SeatMapClient
 
 subgraph subGraph2 ["Runtime Clients (Created by ctx)"]
     TicketClient
@@ -93,7 +93,7 @@ end
 subgraph src/checkout.ts ["src/checkout.ts"]
     CheckoutService
     ProcessHandler
-    CheckoutService --> ProcessHandler
+    CheckoutService -.-> ProcessHandler
 end
 ```
 
@@ -155,20 +155,20 @@ sequenceDiagram
   Restate Runtime->>checkoutWorkflow.process: {ticketId:"seat-1", userId:"user-1", paymentMethodId:"card_success"}
   checkoutWorkflow.process->>checkoutWorkflow.process: Invoke process(ctx, request)
   checkoutWorkflow.process->>ticketObject.reserve/confirm/release: Create ticket client [line 12]
-  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: AVAILABLE → RESERVED
+  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: AVAILABLE → RESERVED<br/>reservedBy: "user-1"<br/>reservedUntil: now+15min
   ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: Create seatMap client [line 13]
   checkoutWorkflow.process->>seatMapObject.set: ticket.reserve(userId)
   note over seatMapObject.set,[src/game.ts:95]: map["seat-1"] = "RESERVED"
   seatMapObject.set-->>checkoutWorkflow.process: true
   checkoutWorkflow.process->>checkoutWorkflow.process: seatMap.set({seatId:"seat-1", status:"RESERVED"})
   checkoutWorkflow.process->>processPayment(): true
-  note over processPayment(),[src/utils/payment_new.ts]: Simulated 500ms delay
+  note over processPayment(),[src/utils/payment_new.ts]: Simulated 500ms delay<br/>Return success
   processPayment()-->>checkoutWorkflow.process: ctx.run("process-payment") [line 22]
   checkoutWorkflow.process->>ticketObject.reserve/confirm/release: processPayment(100, "card_success")
-  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: RESERVED → SOLD
+  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: RESERVED → SOLD<br/>Clear reservedUntil
   ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: success
   checkoutWorkflow.process->>seatMapObject.set: ticket.confirm()
-  note over seatMapObject.set,[src/game.ts:95]: map["seat-1"] = "SOLD"
+  note over seatMapObject.set,[src/game.ts:95]: map["seat-1"] = "SOLD"<br/>Check if soldCount >= 50
   seatMapObject.set-->>checkoutWorkflow.process: true
   checkoutWorkflow.process->>checkoutWorkflow.process: seatMap.set({seatId:"seat-1", status:"SOLD"})
   checkoutWorkflow.process->>sendEmail(): true
@@ -187,7 +187,7 @@ sequenceDiagram
   processPayment()-->>checkoutWorkflow.process: true
   note over checkoutWorkflow.process,[src/checkout.ts:9]: Compensation triggered [line 30-34]
   checkoutWorkflow.process->>ticketObject.reserve/confirm/release: ctx.run("process-payment")
-  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: RESERVED → AVAILABLE
+  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: RESERVED → AVAILABLE<br/>Clear reservedBy, reservedUntil
   ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: processPayment(100, "card_decline")
   checkoutWorkflow.process->>seatMapObject.set: throw Error("Payment declined")
   note over seatMapObject.set,[src/game.ts:95]: map["seat-2"] = "AVAILABLE"
@@ -231,20 +231,20 @@ UpdateMap3["Step 4a: seatMap.set SOLD<br>[line 40]"]
 Email["Step 5: ctx.run('send-email')<br>[line 43-45]"]
 Success["return 'Booking Confirmed'<br>[line 47]"]
 
-Start --> Reserve
-Reserve --> UpdateMap1
-UpdateMap1 --> TryBlock
-TryBlock --> Payment
-Payment --> PaymentCall
-PaymentCall --> CheckPayment
-CheckPayment -->|"Success"| Confirm
-CheckPayment -->|"Failure"| CatchBlock
-Confirm --> UpdateMap3
-UpdateMap3 --> Email
-Email --> Success
-CatchBlock --> Release
-Release --> UpdateMap2
-UpdateMap2 --> ThrowError
+Start -.-> Reserve
+Reserve -.-> UpdateMap1
+UpdateMap1 -.-> TryBlock
+TryBlock -.-> Payment
+Payment -.-> PaymentCall
+PaymentCall -.-> CheckPayment
+CheckPayment -.->|"Success"| Confirm
+CheckPayment -.->|"Failure"| CatchBlock
+Confirm -.-> UpdateMap3
+UpdateMap3 -.-> Email
+Email -.-> Success
+CatchBlock -.-> Release
+Release -.-> UpdateMap2
+UpdateMap2 -.-> ThrowError
 ```
 
 ### Compensation Guarantees

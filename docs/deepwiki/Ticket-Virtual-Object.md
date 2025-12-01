@@ -74,20 +74,20 @@ StateRead["ctx.get('state')"]
 StateWrite["ctx.set('state', state)"]
 TimeOp["ctx.run('now', Date.now)"]
 
-ObjectDef --> Name
-ObjectDef --> Handlers
-Handlers --> Reserve
-Handlers --> Confirm
-Handlers --> Release
-Handlers --> Get
-Reserve --> StateRead
-Reserve --> StateWrite
-Reserve --> TimeOp
-Confirm --> StateRead
-Confirm --> StateWrite
-Release --> StateRead
-Release --> StateWrite
-Get --> StateRead
+ObjectDef -.-> Name
+ObjectDef -.-> Handlers
+Handlers -.-> Reserve
+Handlers -.-> Confirm
+Handlers -.-> Release
+Handlers -.-> Get
+Reserve -.-> StateRead
+Reserve -.-> StateWrite
+Reserve -.-> TimeOp
+Confirm -.-> StateRead
+Confirm -.-> StateWrite
+Release -.-> StateRead
+Release -.-> StateWrite
+Get -.-> StateRead
 
 subgraph subGraph1 ["Handler Methods"]
     Reserve
@@ -142,19 +142,19 @@ DoReserve["state.status = 'RESERVED'<br>state.reservedBy = userId<br>now = ctx.r
 Return["return true<br>(idempotent, already reserved by userId)"]
 SaveState["ctx.set('state', state)"]
 
-Start --> GetState
-GetState --> DefaultCheck
-DefaultCheck -->|"No"| InitState
-DefaultCheck -->|"Yes"| CheckSold
-InitState --> CheckSold
-CheckSold -->|"Yes"| ErrorSold
-CheckSold -->|"No"| CheckReserved
-CheckReserved -->|"Yes"| ErrorReserved
-CheckReserved -->|"No"| CheckAvailable
-CheckAvailable -->|"Yes"| DoReserve
-CheckAvailable -->|"No"| Return
-DoReserve --> SaveState
-SaveState --> Return
+Start -.-> GetState
+GetState -.-> DefaultCheck
+DefaultCheck -.->|"No"| InitState
+DefaultCheck -.->|"Yes"| CheckSold
+InitState -.-> CheckSold
+CheckSold -.->|"Yes"| ErrorSold
+CheckSold -.->|"No"| CheckReserved
+CheckReserved -.->|"Yes"| ErrorReserved
+CheckReserved -.->|"No"| CheckAvailable
+CheckAvailable -.->|"Yes"| DoReserve
+CheckAvailable -.->|"No"| Return
+DoReserve -.-> SaveState
+SaveState -.-> Return
 ```
 
 **Key Implementation Details**:
@@ -345,12 +345,12 @@ Reserve["reserve(userId)"]
 Confirm["confirm()"]
 Release["release()"]
 
-CW -->|"1.Reserve seat"| Client
-Client --> Reserve
-CW -->|"2.After payment success"| Client
-Client --> Confirm
-CW -->|"3.On payment failure"| Client
-Client --> Release
+CW -.->|"1.Reserve seat"| Client
+Client -.-> Reserve
+CW -.->|"2.After payment success"| Client
+Client -.-> Confirm
+CW -.->|"3.On payment failure"| Client
+Client -.-> Release
 ```
 
 The workflow uses `await` to wait for each RPC call to complete, ensuring that state transitions happen in the correct order. If the workflow crashes mid-execution, Restate replays it from the last durable checkpoint, ensuring exactly-once semantics for all Ticket operations.

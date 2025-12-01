@@ -45,21 +45,21 @@ DevDeps["typescript<br>wrangler<br>@cloudflare/workers-types<br>Dev dependencies
 Compiled["Compiled JavaScript<br>Type-checked code"]
 Bundle["Worker bundle<br>Deployed to Cloudflare"]
 
-PJ -->|"defines devDependencies"| Runtime
-PJ -->|"main field"| DevDeps
-PJ -->|"defines scripts (dev, deploy)"| Wrangler
-NPM --> PJ
-NPM -->|"reads"| Runtime
-NPM -->|"bundles"| DevDeps
-TS -->|"compiles src/**/*.ts"| TSC
-TS -->|"types array"| DevDeps
-WR -->|"configures"| Wrangler
-WR -->|"reads"| Compiled
-WR -->|"compatibility_flags"| Runtime
-TSC --> TS
-TSC -->|"uses compiler"| Compiled
-Wrangler --> WR
-Wrangler -->|"configures"| Bundle
+PJ -.->|"defines devDependencies"| Runtime
+PJ -.->|"main field"| DevDeps
+PJ -.->|"defines scripts (dev, deploy)"| Wrangler
+NPM -.->|"reads"| PJ
+NPM -.->|"uses compiler"| Runtime
+NPM -.->|"bundles"| DevDeps
+TS -.->|"compiles src/**/*.ts"| TSC
+TS -.->|"types array"| DevDeps
+WR -.->|"configures"| Wrangler
+WR -.->|"reads"| Compiled
+WR -.->|"compatibility_flags"| Runtime
+TSC -.-> TS
+TSC -.->|"configures"| Compiled
+Wrangler -.-> WR
+Wrangler -.->|"installs"| Bundle
 
 subgraph subGraph3 ["Build Outputs"]
     Compiled
@@ -75,7 +75,7 @@ subgraph subGraph1 ["Build Tools"]
     NPM
     TSC
     Wrangler
-    Wrangler --> TSC
+    Wrangler -.->|"reads"| TSC
 end
 
 subgraph subGraph0 ["Configuration Files"]
@@ -205,11 +205,11 @@ Game["src/game.ts<br>Ticket, SeatMap"]
 Checkout["src/checkout.ts<br>Checkout workflow"]
 Utils["src/utils/<br>payment_new.ts, email.ts"]
 
-WR -->|"main field"| Index
-SRC --> Index
-SRC --> Game
-SRC --> Checkout
-SRC --> Utils
+WR -.->|"main field"| Index
+SRC -.-> Index
+SRC -.-> Game
+SRC -.-> Checkout
+SRC -.-> Utils
 
 subgraph subGraph1 ["Source Files"]
     Index
@@ -223,8 +223,8 @@ subgraph subGraph0 ["Repository Root"]
     TS
     WR
     SRC
-    PJ -->|"scripts execute on"| WR
-    TS -->|"include pattern"| SRC
+    PJ -.->|"scripts execute on"| WR
+    TS -.->|"include pattern"| SRC
 end
 ```
 

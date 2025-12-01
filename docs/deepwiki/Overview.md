@@ -48,22 +48,22 @@ Payment["processPayment()<br>src/utils/payment_new.ts"]
 Email["sendEmail()<br>src/utils/email.ts"]
 MockAPI["handleMockPayment()<br>/api/mock-payment endpoint"]
 
-WC --> RC
-TS --> RL
-LT --> RC
-RL --> Entry
-RC --> Entry
+WC -.-> RC
+TS -.-> RL
+LT -.-> RC
+RL -.-> Entry
+RC -.-> Entry
 
 subgraph Worker ["Cloudflare Workers Execution Layer"]
     Entry
-    Entry --> MockAPI
-    Entry --> Checkout
-    Entry --> Ticket
-    Entry --> SeatMap
-    Checkout --> Ticket
-    Checkout --> SeatMap
-    Checkout --> Payment
-    Checkout --> Email
+    Entry -.-> MockAPI
+    Entry -.-> Checkout
+    Entry -.-> Ticket
+    Entry -.-> SeatMap
+    Checkout -.-> Ticket
+    Checkout -.-> SeatMap
+    Checkout -.-> Payment
+    Checkout -.-> Email
 
 subgraph Utils ["Utility Functions"]
     Payment
@@ -124,11 +124,17 @@ Handler["createEndpointHandler()"]
 Bindings["Service Bindings:<br>- ticket<br>- checkout<br>- seatMap"]
 Router["Request Router"]
 
+Router -.-> TicketService
+Router -.-> SeatMapService
+Router -.-> CheckoutService
+CheckoutService -.-> TicketService
+CheckoutService -.-> SeatMapService
+
 subgraph Entry ["Entry Point (src/index.ts)"]
     Handler
     Bindings
     Router
-    Handler --> Bindings
+    Handler -.-> Bindings
 end
 
 subgraph CheckoutService ["Checkout Workflow (src/checkout.ts)"]
@@ -219,12 +225,12 @@ sequenceDiagram
   Restate Server->>Worker (src/index.ts): {ticketId: "seat-1", userId: "user-1", paymentMethodId: "card_success"}
   Worker (src/index.ts)->>Checkout Workflow: Invoke via createEndpointHandler()
   Checkout Workflow->>Ticket Object: Route to checkout.process()
-  note over Ticket Object: Serialized access
+  note over Ticket Object: Serialized access<br/>State: AVAILABLE → RESERVED
   Ticket Object-->>Checkout Workflow: ctx.objectClient.reserve("user-1")
   Checkout Workflow->>SeatMap Object: Success
   SeatMap Object-->>Checkout Workflow: ctx.objectClient.set("seat-1", "RESERVED")
   Checkout Workflow->>processPayment(): Success
-  note over processPayment(): Exactly-once execution
+  note over processPayment(): Exactly-once execution<br/>500ms simulated delay
   processPayment()-->>Checkout Workflow: ctx.run("process-payment", () => processPayment(...))
   Checkout Workflow->>Ticket Object: Success
   note over Ticket Object: State: RESERVED → SOLD

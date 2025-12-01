@@ -108,21 +108,21 @@ sequenceDiagram
 
   note over Checkout Workflow,Console Output: Email Notification Step (after payment and confirmation)
   Checkout Workflow->>Restate Context: ctx.run("send-email", async () => {...})
-  note over Restate Context,ctx.run(): Check journal for
+  note over Restate Context,ctx.run(): Check journal for<br/>"send-email" entry
   alt Email not sent yet (first execution)
     Restate Context->>sendEmail Function: sendEmail(userId, "Booking Confirmed", message)
     sendEmail Function->>Console Output: Log: "Sending email to {userId}"
     sendEmail Function->>Console Output: Log: "Subject: Booking Confirmed"
     sendEmail Function->>Console Output: Log: "Body: {message}"
     sendEmail Function->>sendEmail Function: await new Promise(resolve => setTimeout(resolve, 200))
-    note over sendEmail Function,(utils/email.ts): Simulate 200ms
+    note over sendEmail Function,(utils/email.ts): Simulate 200ms<br/>network delay
     sendEmail Function->>Console Output: Log: "Email sent successfully"
     sendEmail Function-->>Restate Context: Return void
     Restate Context->>Restate Context: Journal "send-email" completion
     Restate Context-->>Checkout Workflow: Return void
   else Email already sent (replay after crash)
     Restate Context->>Restate Context: Read "send-email" from journal
-    note over Restate Context,ctx.run(): Skip execution,
+    note over Restate Context,ctx.run(): Skip execution,<br/>use journaled result
     Restate Context-->>Checkout Workflow: Return void (from journal)
   end
   Checkout Workflow->>Checkout Workflow: Return "Booking Confirmed"
@@ -186,9 +186,9 @@ CW["Checkout Workflow<br>(checkout.ts)"]
 Email["sendEmail function<br>(utils/email.ts)"]
 Console["Console/Logs"]
 
-CW -->|"import { sendEmail }"| Email
-CW -->|"ctx.run('send-email', ...)"| Email
-Email -->|"console.log()"| Console
+CW -.->|"import { sendEmail }"| Email
+CW -.->|"ctx.run('send-email', ...)"| Email
+Email -.->|"console.log()"| Console
 ```
 
 **Sources:** [src/checkout.ts L4](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L4-L4)

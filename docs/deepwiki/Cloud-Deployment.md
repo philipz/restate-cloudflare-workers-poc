@@ -35,15 +35,15 @@ TestScript["test-cloud.sh"]
 LoadTest["load-test.js"]
 WebClient["Web Clients"]
 
-CLI -->|"2.restate cloud login"| WorkerDeploy
-RestateCLI --> RestateEnv
-RestateCLI -->|"3.restate deployments register"| RestateRegistry
-RestateRegistry -->|"Stores"| WorkerDeploy
-TestScript -->|"Reads token from"| EnvFile
-TestScript -->|"HTTP + Authorization: Bearer"| RestateIngress
-LoadTest -->|"HTTP + Authorization: Bearer"| RestateIngress
-WebClient -->|"HTTP + Authorization: Bearer"| RestateIngress
-RestateIngress -->|"Invokes services at"| WorkerDeploy
+CLI -.->|"2.restate cloud login"| WorkerDeploy
+RestateCLI -.->|"3.restate deployments register"| RestateEnv
+RestateCLI -.->|"Stores"| RestateRegistry
+RestateRegistry -.-> WorkerDeploy
+TestScript -.->|"Reads token from"| EnvFile
+TestScript -.->|"HTTP + Authorization: Bearer"| RestateIngress
+LoadTest -.->|"HTTP + Authorization: Bearer"| RestateIngress
+WebClient -.->|"HTTP + Authorization: Bearer"| RestateIngress
+RestateIngress -.->|"Invokes services at"| WorkerDeploy
 
 subgraph subGraph3 ["External Clients"]
     TestScript
@@ -60,7 +60,7 @@ end
 subgraph subGraph1 ["Cloudflare Platform"]
     WorkerDeploy
     CFEdge
-    WorkerDeploy -->|"Deployed to"| CFEdge
+    WorkerDeploy -.->|"Deployed to"| CFEdge
 end
 
 subgraph subGraph0 ["Local Development Machine"]
@@ -104,7 +104,7 @@ sequenceDiagram
   participant Cloudflare Edge
 
   Developer->>wrangler CLI: "npm install"
-  note over wrangler CLI: Install dependencies
+  note over wrangler CLI: Install dependencies<br/>(@restatedev/restate-sdk-cloudflare)
   Developer->>wrangler CLI: "npx wrangler deploy"
   wrangler CLI->>wrangler CLI: "Compile TypeScript
   wrangler CLI->>wrangler CLI: (src/index.ts)"
@@ -159,17 +159,17 @@ Auth["Authentication Token"]
 Env["nexus-poc Environment<br>201kb7y8wxs1nk6t81wyx88dn2q"]
 Registry["Service Registry"]
 
-Login -->|"Creates"| Auth
-CreateEnv -->|"Links CLI to"| Env
-Configure -->|"Required for"| Env
-Register -->|"Populates"| Registry
-Auth -->|"Creates"| Register
+Login -.->|"Creates"| Auth
+CreateEnv -.->|"Links CLI to"| Env
+Configure -.->|"Required for"| Env
+Register -.->|"Populates"| Registry
+Auth -.->|"Creates"| Register
 
 subgraph subGraph1 ["Restate Cloud Resources"]
     Auth
     Env
     Registry
-    Env -->|"Contains"| Registry
+    Env -.->|"Contains"| Registry
 end
 
 subgraph subGraph0 ["Setup Steps"]
@@ -248,9 +248,9 @@ EnvVar["Environment Variable<br>RESTATE_AUTH_TOKEN"]
 TestCloud["test-cloud.sh<br>Authorization header"]
 LoadTest["load-test.js<br>-e RESTATE_AUTH_TOKEN"]
 
-Token -->|"Saved in"| EnvFile
-EnvVar -->|"Used by"| TestCloud
-EnvVar -->|"Passed to"| LoadTest
+Token -.->|"Saved in"| EnvFile
+EnvVar -.->|"Used by"| TestCloud
+EnvVar -.->|"Passed to"| LoadTest
 
 subgraph subGraph2 ["Client Applications"]
     TestCloud
@@ -260,15 +260,15 @@ end
 subgraph subGraph1 ["Local Storage"]
     EnvFile
     EnvVar
-    EnvFile -->|"source .env"| EnvVar
+    EnvFile -.->|"source .env"| EnvVar
 end
 
 subgraph subGraph0 ["Token Generation"]
     CloudUI
     TokenGen
     Token
-    CloudUI --> TokenGen
-    TokenGen --> Token
+    CloudUI -.-> TokenGen
+    TokenGen -.-> Token
 end
 ```
 
@@ -346,7 +346,7 @@ sequenceDiagram
   Restate Cloud->>Restate Cloud: "createEndpointHandler()
   Restate Cloud->>Restate Cloud: enumerates services"
   Restate Cloud-->>restate CLI: "Service Descriptor JSON
-  note over Restate Cloud,Service Registry: Restate can now invoke
+  note over Restate Cloud,Service Registry: Restate can now invoke<br/>services at Worker URL
 ```
 
 **Sources**: [README.md L44-L48](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/README.md#L44-L48)
@@ -401,9 +401,9 @@ Result1["Response: Booking Confirmed<br>Status: 200"]
 Result2["Response: Payment failed<br>Status: 500"]
 Result3["Response: {status: SOLD}<br>Status: 200"]
 
-Test1 -->|"Pass"| Result1
-Test2 -->|"Pass"| Result2
-Test3 -->|"Pass"| Result3
+Test1 -.->|"Pass"| Result1
+Test2 -.->|"Pass"| Result2
+Test3 -.-> Result3
 
 subgraph subGraph1 ["Expected Results"]
     Result1
@@ -417,10 +417,10 @@ subgraph subGraph0 ["Test Execution"]
     Test1
     Test2
     Test3
-    Script --> LoadEnv
-    LoadEnv --> Test1
-    Test1 --> Test2
-    Test2 --> Test3
+    Script -.-> LoadEnv
+    LoadEnv -.-> Test1
+    Test1 -.-> Test2
+    Test2 -.->|"Pass"| Test3
 end
 ```
 

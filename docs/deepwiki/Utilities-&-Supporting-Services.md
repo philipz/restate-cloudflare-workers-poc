@@ -52,12 +52,12 @@ CheckoutWorkflow["Checkout.process<br>(workflow handler)"]
 ProcessPayment["processPayment<br>(src/utils/payment_new.ts)"]
 SendEmail["sendEmail<br>(src/utils/email.ts)"]
 
-Client -->|"POST /api/mock-payment"| FetchHandler
-Client -->|"POST /Checkout/process"| FetchHandler
-RestateHandler --> CheckoutWorkflow
-CheckoutWorkflow -->|"ctx.run('process-payment', ...)"| ProcessPayment
-CheckoutWorkflow -->|"ctx.run('send-email', ...)"| SendEmail
-MockPaymentHandler -->|"Simulates external APIfor testing"| ProcessPayment
+Client -.->|"POST /api/mock-payment"| FetchHandler
+Client -.->|"POST /Checkout/process"| FetchHandler
+RestateHandler -.-> CheckoutWorkflow
+CheckoutWorkflow -.->|"ctx.run('process-payment', ...)"| ProcessPayment
+CheckoutWorkflow -.->|"ctx.run('send-email', ...)"| SendEmail
+MockPaymentHandler -.->|"Simulates external APIfor testing"| ProcessPayment
 
 subgraph subGraph3 ["Utility Functions"]
     ProcessPayment
@@ -73,9 +73,9 @@ subgraph subGraph1 ["Worker Entry Point - src/index.ts"]
     URLRouter
     RestateHandler
     MockPaymentHandler
-    FetchHandler --> URLRouter
-    URLRouter -->|"pathname === '/api/mock-payment'"| MockPaymentHandler
-    URLRouter -->|"other paths"| RestateHandler
+    FetchHandler -.-> URLRouter
+    URLRouter -.->|"pathname === '/api/mock-payment'"| MockPaymentHandler
+    URLRouter -.->|"other paths"| RestateHandler
 end
 
 subgraph subGraph0 ["Client Layer"]
@@ -130,22 +130,22 @@ CheckoutWF["Checkout.process<br>src/checkout.ts"]
 CtxRun["ctx.run('process-payment')"]
 ProcessPaymentFn["processPayment<br>src/utils/payment_new.ts:1-19"]
 
-MockEndpoint -->|"Shares logic with"| ProcessPaymentFn
+MockEndpoint -.->|"Shares logic with"| ProcessPaymentFn
 
 subgraph subGraph1 ["Production Workflow Path"]
     CheckoutWF
     CtxRun
     ProcessPaymentFn
-    CheckoutWF -->|"Returns true or throws Error"| CtxRun
-    CtxRun -->|"Wraps for idempotency"| ProcessPaymentFn
-    ProcessPaymentFn --> CtxRun
+    CheckoutWF -.->|"Returns true or throws Error"| CtxRun
+    CtxRun -.->|"Wraps for idempotency"| ProcessPaymentFn
+    ProcessPaymentFn -.-> CtxRun
 end
 
 subgraph subGraph0 ["External Testing Path"]
     TestClient
     MockEndpoint
-    TestClient -->|"POST /api/mock-payment{amount, paymentMethodId}"| MockEndpoint
-    MockEndpoint -->|"Simulates 500ms delayReturns HTTP status"| TestClient
+    TestClient -.->|"POST /api/mock-payment{amount, paymentMethodId}"| MockEndpoint
+    MockEndpoint -.->|"Simulates 500ms delayReturns HTTP status"| TestClient
 end
 ```
 
@@ -200,9 +200,9 @@ ProcessPayment["processPayment<br>500ms delay<br>(line 5)"]
 SendEmail["sendEmail<br>200ms delay<br>(line 7)"]
 Delay["await new Promise(resolve => setTimeout(resolve, ms))"]
 
-MockPayment --> Delay
-ProcessPayment --> Delay
-SendEmail --> Delay
+MockPayment -.-> Delay
+ProcessPayment -.-> Delay
+SendEmail -.-> Delay
 
 subgraph Implementation ["Implementation"]
     Delay

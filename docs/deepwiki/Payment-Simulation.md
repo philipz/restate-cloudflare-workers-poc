@@ -34,11 +34,11 @@ HttpEndpoint["POST /api/mock-payment<br>handleMockPayment()<br>src/index.ts<br>E
 Result["Returns Promise<br>or throws Error"]
 Response["Returns Response<br>Status: 200/402/503"]
 
-Workflow --> Decision
-Decision -->|"No: Test workflowcompensation logic"| InProcess
-Decision -->|"Yes: Test HTTPintegration patterns"| HttpEndpoint
-InProcess --> Result
-HttpEndpoint --> Response
+Workflow -.-> Decision
+Decision -.->|"No: Test workflowcompensation logic"| InProcess
+Decision -.->|"Yes: Test HTTPintegration patterns"| HttpEndpoint
+InProcess -.-> Result
+HttpEndpoint -.-> Response
 ```
 
 **Sources:** [src/checkout.ts L22-L28](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L22-L28)
@@ -85,12 +85,12 @@ ThrowDecline["throw Error('Payment declined')<br>[payment_new.ts:9]"]
 ThrowTimeout["throw Error('Gateway timeout')<br>[payment_new.ts:14]"]
 ReturnSuccess["return true<br>[payment_new.ts:18]"]
 
-Start --> Delay
-Delay --> CheckDecline
-CheckDecline -->|"Yes"| ThrowDecline
-CheckDecline -->|"No"| CheckError
-CheckError -->|"Yes"| ThrowTimeout
-CheckError -->|"No"| ReturnSuccess
+Start -.-> Delay
+Delay -.-> CheckDecline
+CheckDecline -.->|"Yes"| ThrowDecline
+CheckDecline -.->|"No"| CheckError
+CheckError -.->|"Yes"| ThrowTimeout
+CheckError -.->|"No"| ReturnSuccess
 ```
 
 **Sources:** [src/utils/payment_new.ts L1-L19](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/utils/payment_new.ts#L1-L19)
@@ -200,15 +200,15 @@ Return402["Response(error: 'Insufficient funds')<br>Status: 402<br>[index.ts:23-
 Return503["Response(error: 'Gateway timeout')<br>Status: 503<br>[index.ts:29-33]"]
 Return200["Response(success: true)<br>transactionId: crypto.randomUUID()<br>Status: 200, X-Version: v2<br>[index.ts:36-39]"]
 
-Request --> MethodCheck
-MethodCheck -->|"No"| Return405
-MethodCheck -->|"Yes"| ParseBody
-ParseBody --> Delay
-Delay --> CheckDecline
-CheckDecline -->|"Yes"| Return402
-CheckDecline -->|"No"| CheckError
-CheckError -->|"Yes"| Return503
-CheckError -->|"No"| Return200
+Request -.-> MethodCheck
+MethodCheck -.->|"No"| Return405
+MethodCheck -.->|"Yes"| ParseBody
+ParseBody -.-> Delay
+Delay -.-> CheckDecline
+CheckDecline -.->|"Yes"| Return402
+CheckDecline -.->|"No"| CheckError
+CheckError -.->|"Yes"| Return503
+CheckError -.->|"No"| Return200
 ```
 
 **Sources:** [src/index.ts L11-L40](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/index.ts#L11-L40)
@@ -258,26 +258,26 @@ S2Result["processPayment throws Error<br>handleMockPayment returns 402<br>Workfl
 S3["paymentMethodId: 'card_error'"]
 S3Result["processPayment throws Error<br>handleMockPayment returns 503<br>Workflow executes compensation"]
 
-TestSuite --> S1
-TestSuite --> S2
-TestSuite --> S3
+TestSuite -.-> S1
+TestSuite -.-> S2
+TestSuite -.-> S3
 
 subgraph subGraph2 ["Scenario 3: Gateway Error"]
     S3
     S3Result
-    S3 --> S3Result
+    S3 -.-> S3Result
 end
 
 subgraph subGraph1 ["Scenario 2: Payment Declined"]
     S2
     S2Result
-    S2 --> S2Result
+    S2 -.-> S2Result
 end
 
 subgraph subGraph0 ["Scenario 1: Happy Path"]
     S1
     S1Result
-    S1 --> S1Result
+    S1 -.-> S1Result
 end
 ```
 
@@ -341,7 +341,7 @@ sequenceDiagram
   note over processPayment(): await setTimeout(500ms)
   processPayment()->>processPayment(): Check: paymentMethodId === "card_decline"
   processPayment()-->>Checkout Workflow: throw Error("Payment declined")
-  note over Checkout Workflow: catch block triggered
+  note over Checkout Workflow: catch block triggered<br/>[checkout.ts:29]
   Checkout Workflow->>Ticket Object: release()
   Ticket Object-->>Checkout Workflow: Success (AVAILABLE)
   Checkout Workflow->>SeatMap Object: set(seatId, AVAILABLE)

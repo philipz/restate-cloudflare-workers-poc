@@ -52,17 +52,17 @@ Index["src/index.ts"]
 Game["src/game.ts"]
 Checkout["src/checkout.ts"]
 
-Wrangler -->|"Type checking"| Esbuild
-Wrangler --> Miniflare
-Wrangler -->|"Bundles"| Workerd
-Index --> SDK
-Index --> Types
-Game --> SDK
-Checkout --> SDK
-TS -->|"Type checking"| Index
-TS --> Game
-TS --> Checkout
-Esbuild --> Index
+Wrangler -.->|"Type checking"| Esbuild
+Wrangler -.->|"Bundles"| Miniflare
+Wrangler -.-> Workerd
+Index -.-> SDK
+Index -.->|"Type checking"| Types
+Game -.-> SDK
+Checkout -.-> SDK
+TS -.->|"Type checking"| Index
+TS -.-> Game
+TS -.-> Checkout
+Esbuild -.-> Index
 
 subgraph subGraph3 ["Source Code"]
     Index
@@ -85,7 +85,7 @@ end
 subgraph subGraph0 ["Runtime Layer"]
     SDK
     Core
-    SDK --> Core
+    SDK -.-> Core
 end
 ```
 
@@ -261,26 +261,26 @@ WS["ws<br>8.18.0"]
 Youch["youch<br>4.1.0-beta.10"]
 Zod["zod<br>3.22.3"]
 
-SDK --> CoreSDK
-Wrangler --> Esbuild
-Wrangler --> Miniflare
-Wrangler --> Workerd
-Wrangler --> KVHandler
-Wrangler --> UnenvPreset
-Wrangler --> Blake3
-Wrangler --> PathRegexp
-Wrangler --> Unenv
-Miniflare --> SourceMap
-Miniflare --> Acorn
-Miniflare --> AcornWalk
-Miniflare --> ExitHook
-Miniflare --> GlobRegexp
-Miniflare --> Sharp
-Miniflare --> Stoppable
-Miniflare --> Undici
-Miniflare --> WS
-Miniflare --> Youch
-Miniflare --> Zod
+SDK -.-> CoreSDK
+Wrangler -.-> Esbuild
+Wrangler -.-> Miniflare
+Wrangler -.-> Workerd
+Wrangler -.-> KVHandler
+Wrangler -.-> UnenvPreset
+Wrangler -.-> Blake3
+Wrangler -.-> PathRegexp
+Wrangler -.-> Unenv
+Miniflare -.-> SourceMap
+Miniflare -.-> Acorn
+Miniflare -.-> AcornWalk
+Miniflare -.-> ExitHook
+Miniflare -.-> GlobRegexp
+Miniflare -.-> Sharp
+Miniflare -.-> Stoppable
+Miniflare -.-> Undici
+Miniflare -.-> WS
+Miniflare -.-> Youch
+Miniflare -.-> Zod
 
 subgraph subGraph3 ["Miniflare Transitive Dependencies"]
     SourceMap
@@ -394,24 +394,24 @@ SrcGame["src/game.ts"]
 SrcCheckout["src/checkout.ts"]
 SrcUtils["src/utils/*"]
 
-DevCmd --> WranglerDev
-DeployCmd --> WranglerDeploy
-WranglerDev --> TSCheck
-WranglerDev --> Bundle
-WranglerDev --> MF
-WranglerDeploy --> TSCheck
-WranglerDeploy --> Bundle
-WranglerDeploy --> Minify
-WranglerDeploy --> Upload
-WranglerDeploy --> Register
-TSCheck --> SrcIndex
-TSCheck --> SrcGame
-TSCheck --> SrcCheckout
-TSCheck --> SrcUtils
-Bundle --> SrcIndex
-Bundle --> SrcGame
-Bundle --> SrcCheckout
-Bundle --> SrcUtils
+DevCmd -.-> WranglerDev
+DeployCmd -.-> WranglerDeploy
+WranglerDev -.-> TSCheck
+WranglerDev -.-> Bundle
+WranglerDev -.-> MF
+WranglerDeploy -.-> TSCheck
+WranglerDeploy -.-> Bundle
+WranglerDeploy -.-> Minify
+WranglerDeploy -.-> Upload
+WranglerDeploy -.-> Register
+TSCheck -.-> SrcIndex
+TSCheck -.-> SrcGame
+TSCheck -.-> SrcCheckout
+TSCheck -.-> SrcUtils
+Bundle -.-> SrcIndex
+Bundle -.-> SrcGame
+Bundle -.-> SrcCheckout
+Bundle -.-> SrcUtils
 
 subgraph subGraph5 ["Source Files"]
     SrcIndex
@@ -429,8 +429,8 @@ subgraph subGraph3 ["Local Development"]
     MF
     WD
     HotReload
-    MF --> WD
-    MF --> HotReload
+    MF -.-> WD
+    MF -.-> HotReload
 end
 
 subgraph subGraph2 ["Build Pipeline"]
@@ -537,13 +537,13 @@ SDK["@restatedev/restate-sdk-cloudflare-workers"]
 Core["@restatedev/restate-sdk-core"]
 BundledCode["Minified & Tree-shaken<br>JavaScript Bundle"]
 
-Index --> BundledCode
-Game --> BundledCode
-Checkout --> BundledCode
-Payment --> BundledCode
-Email --> BundledCode
-SDK --> BundledCode
-Core --> BundledCode
+Index -.-> BundledCode
+Game -.-> BundledCode
+Checkout -.-> BundledCode
+Payment -.-> BundledCode
+Email -.-> BundledCode
+SDK -.-> BundledCode
+Core -.-> BundledCode
 
 subgraph subGraph2 ["Production Bundle(index.js)"]
     BundledCode
