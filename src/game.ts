@@ -119,7 +119,7 @@ export const seatMapObject = restate.object({
             console.log("Executing async reset-all-seats...");
 
             // 1. Reset local map state
-            const map = (await ctx.get<Record<string, string>>("map")) || {};
+            const map: Record<string, string> = {};
             for (let i = 1; i <= 50; i++) {
                 map[`seat-${i}`] = "AVAILABLE";
             }
