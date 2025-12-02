@@ -125,9 +125,9 @@ export const seatMapObject = restate.object({
             }
             ctx.set("map", map);
 
-            // 2. Release all tickets
+            // 2. Release all tickets (Fire and Forget)
             for (let i = 1; i <= 50; i++) {
-                await ctx.objectClient(ticketObject, `seat-${i}`).release();
+                ctx.objectSendClient(ticketObject, `seat-${i}`).release();
             }
         },
         get: async (ctx: restate.ObjectContext) => {
