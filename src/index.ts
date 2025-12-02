@@ -1,11 +1,12 @@
 import { createEndpointHandler } from "@restatedev/restate-sdk-cloudflare-workers/fetch";
 import { ticketObject, seatMapObject } from "./game";
 import { checkoutWorkflow } from "./checkout";
+import { gameManager } from "./game_manager";
 
 console.log("Starting worker script with createEndpointHandler...");
 
 const restateHandler = createEndpointHandler({
-    services: [ticketObject, checkoutWorkflow, seatMapObject],
+    services: [ticketObject, checkoutWorkflow, seatMapObject, gameManager],
 });
 
 async function handleMockPayment(request: Request): Promise<Response> {

@@ -1,4 +1,5 @@
 import * as restate from "@restatedev/restate-sdk-cloudflare-workers/fetch";
+import { gameManager } from "./game_manager";
 
 // ----------------------------------------------------------------------------
 // Ticket Object
@@ -113,27 +114,19 @@ export const seatMapObject = restate.object({
                 }
                 ctx.set("map", map);
 
-                // 2. Trigger async reset of Ticket objects (Fire and Forget)
-                // This avoids blocking the SeatMap while releasing tickets
-                ctx.objectSendClient(seatMapObject, "global").resetAll();
+                // 2. Trigger async reset via GameManager (Fire and Forget)
+                // This avoids blocking the SeatMap completely
+                ctx.serviceSendClient(gameManager).reset();
             }
 
             return true;
         },
-        resetAll: async (ctx: restate.ObjectContext) => {
-            console.log("Executing async reset-all-seats...");
-
-            // 1. Reset local map state
+        reset: async (ctx: restate.ObjectContext) => {
             const map: Record<string, string> = {};
             for (let i = 1; i <= 50; i++) {
                 map[`seat-${i}`] = "AVAILABLE";
             }
             ctx.set("map", map);
-
-            // 2. Release all tickets (Fire and Forget)
-            for (let i = 1; i <= 50; i++) {
-                ctx.objectSendClient(ticketObject, `seat-${i}`).release();
-            }
         },
         get: async (ctx: restate.ObjectContext) => {
             const map = (await ctx.get<Record<string, string>>("map")) || {};
