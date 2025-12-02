@@ -49,8 +49,13 @@ export const ticketObject = restate.object({
                 reservedUntil: null,
             };
 
-            if (state.status !== "RESERVED") {
-                throw new restate.TerminalError("Ticket is not reserved, cannot confirm");
+            if (state.status === "SOLD") {
+                return true;
+            }
+
+            // Allow confirming if RESERVED or AVAILABLE (in case of race with reset)
+            if (state.status !== "RESERVED" && state.status !== "AVAILABLE") {
+                throw new restate.TerminalError(`Ticket is in status ${state.status}, cannot confirm`);
             }
 
             state.status = "SOLD";
