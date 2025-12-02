@@ -98,34 +98,31 @@ Body: You have successfully purchased ticket seat-5.
 
 ```mermaid
 sequenceDiagram
-  participant Checkout Workflow
-  participant (checkout.ts)
-  participant Restate Context
-  participant ctx.run()
-  participant sendEmail Function
-  participant (utils/email.ts)
-  participant Console Output
+  participant p1 as Checkout Workflow<br/>(checkout.ts)
+  participant p2 as Restate Context<br/>ctx.run()
+  participant p3 as sendEmail Function<br/>(utils/email.ts)
+  participant p4 as Console Output
 
-  note over Checkout Workflow,Console Output: Email Notification Step (after payment and confirmation)
-  Checkout Workflow->>Restate Context: ctx.run("send-email", async () => {...})
-  note over Restate Context,ctx.run(): Check journal for<br/>"send-email" entry
+  note over p1,p4: Email Notification Step (after payment and confirmation)
+  p1->>p2: ctx.run("send-email", async () => {...})
+  note over p2: Check journal for<br/>"send-email" entry
   alt Email not sent yet (first execution)
-    Restate Context->>sendEmail Function: sendEmail(userId, "Booking Confirmed", message)
-    sendEmail Function->>Console Output: Log: "Sending email to {userId}"
-    sendEmail Function->>Console Output: Log: "Subject: Booking Confirmed"
-    sendEmail Function->>Console Output: Log: "Body: {message}"
-    sendEmail Function->>sendEmail Function: await new Promise(resolve => setTimeout(resolve, 200))
-    note over sendEmail Function,(utils/email.ts): Simulate 200ms<br/>network delay
-    sendEmail Function->>Console Output: Log: "Email sent successfully"
-    sendEmail Function-->>Restate Context: Return void
-    Restate Context->>Restate Context: Journal "send-email" completion
-    Restate Context-->>Checkout Workflow: Return void
+    p2->>p3: sendEmail(userId, "Booking Confirmed", message)
+    p3->>p4: Log: "Sending email to {userId}"
+    p3->>p4: Log: "Subject: Booking Confirmed"
+    p3->>p4: Log: "Body: {message}"
+    p3->>p3: await new Promise(resolve => setTimeout(resolve, 200))
+    note over p3: Simulate 200ms<br/>network delay
+    p3->>p4: Log: "Email sent successfully"
+    p3-->>p2: Return void
+    p2->>p2: Journal "send-email" completion
+    p2-->>p1: Return void
   else Email already sent (replay after crash)
-    Restate Context->>Restate Context: Read "send-email" from journal
-    note over Restate Context,ctx.run(): Skip execution,<br/>use journaled result
-    Restate Context-->>Checkout Workflow: Return void (from journal)
+    p2->>p2: Read "send-email" from journal
+    note over p2: Skip execution,<br/>use journaled result
+    p2-->>p1: Return void (from journal)
   end
-  Checkout Workflow->>Checkout Workflow: Return "Booking Confirmed"
+  p1->>p1: Return "Booking Confirmed"
 ```
 
 **Sources:** [src/checkout.ts L42-L45](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L42-L45)

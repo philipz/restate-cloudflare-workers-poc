@@ -82,9 +82,6 @@ SelfAsync["SeatMap.resetAll<br>(Fire-and-forget)"]
 
 Checkout -.->|"Update status"| Set
 Frontend -.->|"Query state"| Get
-Set -.-> subGraph1
-subGraph1 -.->|"soldCount >= 50"| subGraph1
-subGraph1 -.->|"ctx.objectSendClient"| subGraph1
 Set -.-> SelfAsync
 Reset -.->|"await ctx.objectClient"| TicketObj
 SelfAsync -.->|"Triggers"| Reset
@@ -109,6 +106,9 @@ subgraph Handlers ["Handlers"]
     Set
     Reset
     Get
+    Set -.-> Set
+    Set -.->|"soldCount >= 50"| Set
+    Reset -.->|"ctx.objectSendClient"| Reset
 end
 end
 ```
@@ -207,39 +207,36 @@ The auto-reset mechanism is a sophisticated orchestration pattern that coordinat
 
 ```mermaid
 sequenceDiagram
-  participant Checkout Workflow
-  participant SeatMap.set()
-  participant (key: global)
-  participant SeatMap State
-  participant (map)
-  participant SeatMap.resetAll()
-  participant (async invocation)
-  participant Ticket: seat-1
-  participant Ticket: seat-50
+  participant p1 as Checkout Workflow
+  participant p2 as SeatMap.set()<br/>(key: global)
+  participant p3 as SeatMap State<br/>(map)
+  participant p4 as SeatMap.resetAll()<br/>(async invocation)
+  participant p5 as Ticket: seat-1
+  participant p6 as Ticket: seat-50
 
-  note over Checkout Workflow,Ticket: seat-50: Seat 50 Gets Sold (Triggering Reset)
-  Checkout Workflow->>SeatMap.set(): set({seatId: "seat-50", status: "SOLD"})
-  SeatMap.set()->>SeatMap State: Read map
-  SeatMap.set()->>SeatMap State: map["seat-50"] = "SOLD"
-  SeatMap.set()->>SeatMap State: Write map
-  SeatMap.set()->>SeatMap.set(): Count SOLD: 50 seats
-  note over SeatMap.set(),(key: global): soldCount >= 50 detected
-  SeatMap.set()->>SeatMap State: Reset map["seat-1" to "seat-50"] = "AVAILABLE"
-  SeatMap.set()->>SeatMap State: Write map
-  SeatMap.set()->>SeatMap.resetAll(): ctx.objectSendClient().resetAll()
-  SeatMap.set()-->>Checkout Workflow: (Fire-and-forget)
-  note over SeatMap.resetAll(),Ticket: seat-50: Asynchronous Cleanup Phase
-  SeatMap.resetAll()->>SeatMap State: Return true (immediate response)
-  SeatMap.resetAll()->>SeatMap State: Read map
-  SeatMap.resetAll()->>SeatMap State: Reset all entries to "AVAILABLE"
+  note over p1,p6: Seat 50 Gets Sold (Triggering Reset)
+  p1->>p2: set({seatId: "seat-50", status: "SOLD"})
+  p2->>p3: Read map
+  p2->>p3: map["seat-50"] = "SOLD"
+  p2->>p3: Write map
+  p2->>p2: Count SOLD: 50 seats
+  note over p2: soldCount >= 50 detected
+  p2->>p3: Reset map["seat-1" to "seat-50"] = "AVAILABLE"
+  p2->>p3: Write map
+  p2->>p4: ctx.objectSendClient().resetAll()<br/>(Fire-and-forget)
+  p2-->>p1: Return true (immediate response)
+  note over p4,p6: Asynchronous Cleanup Phase
+  p4->>p3: Read map
+  p4->>p3: Reset all entries to "AVAILABLE"
+  p4->>p3: Write map
   loop For i = 1 to 50
-    SeatMap.resetAll()->>Ticket: seat-1: Write map
-    Ticket: seat-1->>Ticket: seat-1: ctx.objectClient().release()
-    Ticket: seat-1-->>SeatMap.resetAll(): (Awaited RPC)
+    p4->>p5: ctx.objectClient().release()<br/>(Awaited RPC)
+    p5->>p5: Set status = "AVAILABLE"<br/>Clear reservedBy, reservedUntil
+    p5-->>p4: Success
   end
-  SeatMap.resetAll()->>Ticket: seat-50: Set status = "AVAILABLE"
-  Ticket: seat-50->>Ticket: seat-50: Clear reservedBy, reservedUntil
-  Ticket: seat-50-->>SeatMap.resetAll(): Success
+  p4->>p6: ctx.objectClient().release()
+  p6->>p6: Set status = "AVAILABLE"
+  p6-->>p4: Success
 ```
 
 **Sources:** [src/game.ts L100-L114](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/game.ts#L100-L114)

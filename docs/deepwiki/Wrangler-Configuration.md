@@ -244,28 +244,28 @@ The following diagram illustrates how the Wrangler configuration fits into the d
 
 ```mermaid
 sequenceDiagram
-  participant Developer
-  participant wrangler CLI
-  participant wrangler.toml
-  participant src/index.ts
-  participant Cloudflare Edge
+  participant p1 as Developer
+  participant p2 as wrangler CLI
+  participant p3 as wrangler.toml
+  participant p4 as src/index.ts
+  participant p5 as Cloudflare Edge
 
-  note over Developer,Cloudflare Edge: Production Deployment
-  Developer->>wrangler CLI: npm run deploy
-  wrangler CLI->>wrangler.toml: Read configuration
-  wrangler.toml-->>wrangler CLI: name, main, compatibility_date, flags
-  wrangler CLI->>src/index.ts: Load entry point
-  wrangler CLI->>wrangler CLI: Transpile TypeScript
-  wrangler CLI->>Cloudflare Edge: Bundle dependencies
-  Cloudflare Edge-->>wrangler CLI: Publish 'nexus-poc' worker
-  wrangler CLI-->>Developer: with nodejs_compat flag
-  note over Developer,Cloudflare Edge: Local Development
-  Developer->>wrangler CLI: Deployment URL
-  wrangler CLI->>wrangler.toml: https://nexus-poc.philipz.workers.dev
-  wrangler.toml-->>wrangler CLI: npm run dev
-  wrangler CLI->>src/index.ts: Read configuration
-  wrangler CLI->>wrangler CLI: name, main, compatibility_date, flags
-  wrangler CLI-->>Developer: Load entry point
+  note over p1,p5: Production Deployment
+  p1->>p2: npm run deploy
+  p2->>p3: Read configuration
+  p3-->>p2: name, main, compatibility_date, flags
+  p2->>p4: Load entry point
+  p2->>p2: Transpile TypeScript<br/>Bundle dependencies
+  p2->>p5: Publish 'nexus-poc' worker<br/>with nodejs_compat flag
+  p5-->>p2: Deployment URL
+  p2-->>p1: https://nexus-poc.philipz.workers.dev
+  note over p1,p5: Local Development
+  p1->>p2: npm run dev
+  p2->>p3: Read configuration
+  p3-->>p2: name, main, compatibility_date, flags
+  p2->>p4: Load entry point
+  p2->>p2: Start miniflare runtime<br/>Apply compatibility flags
+  p2-->>p1: Local server at localhost:8787
 ```
 
 ### Deployment Process

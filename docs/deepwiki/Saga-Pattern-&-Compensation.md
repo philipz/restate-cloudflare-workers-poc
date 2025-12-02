@@ -42,37 +42,32 @@ The critical compensation boundary exists between steps 1-2 (reservation) and st
 
 ```mermaid
 sequenceDiagram
-  participant Checkout Workflow
-  participant (checkoutWorkflow)
-  participant Ticket Virtual Object
-  participant (ticketObject)
-  participant SeatMap Virtual Object
-  participant (seatMapObject)
-  participant Payment Gateway
-  participant (processPayment)
-  participant Email Service
-  participant (sendEmail)
+  participant p1 as Checkout Workflow<br/>(checkoutWorkflow)
+  participant p2 as Ticket Virtual Object<br/>(ticketObject)
+  participant p3 as SeatMap Virtual Object<br/>(seatMapObject)
+  participant p4 as Payment Gateway<br/>(processPayment)
+  participant p5 as Email Service<br/>(sendEmail)
 
-  note over Checkout Workflow,(checkoutWorkflow): "ctx.objectClient<br/>(ticketObject, ticketId)"
-  Checkout Workflow->>Ticket Virtual Object: "reserve(userId)"
-  Ticket Virtual Object->>Ticket Virtual Object: "state.status = 'RESERVED'
-  Ticket Virtual Object-->>Checkout Workflow: state.reservedBy = userId
-  Checkout Workflow->>SeatMap Virtual Object: state.reservedUntil = now + 15min"
-  SeatMap Virtual Object->>SeatMap Virtual Object: "true"
-  SeatMap Virtual Object-->>Checkout Workflow: "set({seatId, status: 'RESERVED'})"
-  note over Checkout Workflow,(checkoutWorkflow): "ctx.run('process-payment', ...)"
-  Checkout Workflow->>Payment Gateway: "map[seatId] = 'RESERVED'"
-  Payment Gateway-->>Checkout Workflow: "true"
-  Checkout Workflow->>Ticket Virtual Object: "processPayment(100, paymentMethodId)"
-  Ticket Virtual Object->>Ticket Virtual Object: "Payment successful"
-  Ticket Virtual Object-->>Checkout Workflow: "confirm()"
-  Checkout Workflow->>SeatMap Virtual Object: "state.status = 'SOLD'
-  SeatMap Virtual Object->>SeatMap Virtual Object: state.reservedUntil = null"
-  SeatMap Virtual Object-->>Checkout Workflow: "true"
-  note over Checkout Workflow,(checkoutWorkflow): "ctx.run('send-email', ...)"
-  Checkout Workflow->>Email Service: "set({seatId, status: 'SOLD'})"
-  Email Service-->>Checkout Workflow: "map[seatId] = 'SOLD'"
-  Checkout Workflow-->>Checkout Workflow: "true"
+  note over p1: "ctx.objectClient<br/>(ticketObject, ticketId)"
+  p1->>p2: "reserve(userId)"<br/>"state.status = 'RESERVED'
+  p2->>p2: state.reservedBy = userId<br/>state.reservedUntil = now + 15min"
+  p2-->>p1: "true"
+  p1->>p3: "set({seatId, status: 'RESERVED'})"
+  p3->>p3: "map[seatId] = 'RESERVED'"
+  p3-->>p1: "true"
+  note over p1: "ctx.run('process-payment', ...)"
+  p1->>p4: "processPayment(100, paymentMethodId)"
+  p4-->>p1: "Payment successful"
+  p1->>p2: "confirm()"
+  p2->>p2: "state.status = 'SOLD'<br/>state.reservedUntil = null"
+  p2-->>p1: "true"
+  p1->>p3: "set({seatId, status: 'SOLD'})"
+  p3->>p3: "map[seatId] = 'SOLD'"
+  p3-->>p1: "true"
+  note over p1: "ctx.run('send-email', ...)"
+  p1->>p5: "sendEmail(userId, subject, body)"
+  p5-->>p1: "void"
+  p1-->>p1: "return 'Booking Confirmed'"
 ```
 
 **Sources:** [src/checkout.ts L9-L48](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L9-L48)
@@ -85,31 +80,27 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant Checkout Workflow
-  participant (checkoutWorkflow)
-  participant Ticket Virtual Object
-  participant (ticketObject)
-  participant SeatMap Virtual Object
-  participant (seatMapObject)
-  participant Payment Gateway
-  participant (processPayment)
+  participant p1 as Checkout Workflow<br/>(checkoutWorkflow)
+  participant p2 as Ticket Virtual Object<br/>(ticketObject)
+  participant p3 as SeatMap Virtual Object<br/>(seatMapObject)
+  participant p4 as Payment Gateway<br/>(processPayment)
 
-  Checkout Workflow->>Ticket Virtual Object: "reserve(userId)"
-  Ticket Virtual Object->>Ticket Virtual Object: "state.status = 'RESERVED'"
-  Ticket Virtual Object-->>Checkout Workflow: "true"
-  Checkout Workflow->>SeatMap Virtual Object: "set({seatId, status: 'RESERVED'})"
-  SeatMap Virtual Object-->>Checkout Workflow: "true"
-  note over Checkout Workflow,(checkoutWorkflow): "ctx.run('process-payment', ...)"
-  Checkout Workflow->>Payment Gateway: "processPayment(100, 'card_decline')"
-  Payment Gateway-->>Checkout Workflow: "Error: Payment declined"
-  note over Checkout Workflow,(checkoutWorkflow): "catch block triggered<br/>Begin compensation"
-  Checkout Workflow->>Ticket Virtual Object: "release()"
-  Ticket Virtual Object->>Ticket Virtual Object: "state.status = 'AVAILABLE'
-  Ticket Virtual Object-->>Checkout Workflow: state.reservedBy = null
-  Checkout Workflow->>SeatMap Virtual Object: state.reservedUntil = null"
-  SeatMap Virtual Object->>SeatMap Virtual Object: "true"
-  SeatMap Virtual Object-->>Checkout Workflow: "set({seatId, status: 'AVAILABLE'})"
-  Checkout Workflow-->>Checkout Workflow: "map[seatId] = 'AVAILABLE'"
+  p1->>p2: "reserve(userId)"
+  p2->>p2: "state.status = 'RESERVED'"
+  p2-->>p1: "true"
+  p1->>p3: "set({seatId, status: 'RESERVED'})"
+  p3-->>p1: "true"
+  note over p1: "ctx.run('process-payment', ...)"
+  p1->>p4: "processPayment(100, 'card_decline')"
+  p4-->>p1: "Error: Payment declined"
+  note over p1: "catch block triggered<br/>Begin compensation"
+  p1->>p2: "release()"<br/>"state.status = 'AVAILABLE'
+  p2->>p2: state.reservedBy = null<br/>state.reservedUntil = null"
+  p2-->>p1: "true"
+  p1->>p3: "set({seatId, status: 'AVAILABLE'})"
+  p3->>p3: "map[seatId] = 'AVAILABLE'"
+  p3-->>p1: "true"
+  p1-->>p1: "throw TerminalError<br/>('Payment failed: ...')"
 ```
 
 **Sources:** [src/checkout.ts L20-L35](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L20-L35)

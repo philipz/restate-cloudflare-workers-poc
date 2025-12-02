@@ -327,26 +327,26 @@ This pattern ensures that:
 
 ```mermaid
 sequenceDiagram
-  participant Checkout Workflow
-  participant processPayment()
-  participant Ticket Object
-  participant SeatMap Object
+  participant p1 as Checkout Workflow
+  participant p2 as processPayment()
+  participant p3 as Ticket Object
+  participant p4 as SeatMap Object
 
-  note over Checkout Workflow,SeatMap Object: Scenario: card_decline
-  Checkout Workflow->>Ticket Object: reserve(userId)
-  Ticket Object-->>Checkout Workflow: Success (RESERVED)
-  Checkout Workflow->>SeatMap Object: set(seatId, RESERVED)
-  SeatMap Object-->>Checkout Workflow: Success
-  Checkout Workflow->>processPayment(): processPayment(100, "card_decline")
-  note over processPayment(): await setTimeout(500ms)
-  processPayment()->>processPayment(): Check: paymentMethodId === "card_decline"
-  processPayment()-->>Checkout Workflow: throw Error("Payment declined")
-  note over Checkout Workflow: catch block triggered<br/>[checkout.ts:29]
-  Checkout Workflow->>Ticket Object: release()
-  Ticket Object-->>Checkout Workflow: Success (AVAILABLE)
-  Checkout Workflow->>SeatMap Object: set(seatId, AVAILABLE)
-  SeatMap Object-->>Checkout Workflow: Success
-  Checkout Workflow-->>Checkout Workflow: throw TerminalError("Payment failed")
+  note over p1,p4: Scenario: card_decline
+  p1->>p3: reserve(userId)
+  p3-->>p1: Success (RESERVED)
+  p1->>p4: set(seatId, RESERVED)
+  p4-->>p1: Success
+  p1->>p2: processPayment(100, "card_decline")
+  note over p2: await setTimeout(500ms)
+  p2->>p2: Check: paymentMethodId === "card_decline"
+  p2-->>p1: throw Error("Payment declined")
+  note over p1: catch block triggered<br/>[checkout.ts:29]
+  p1->>p3: release()
+  p3-->>p1: Success (AVAILABLE)
+  p1->>p4: set(seatId, AVAILABLE)
+  p4-->>p1: Success
+  p1-->>p1: throw TerminalError("Payment failed")
 ```
 
 **Sources:** [src/checkout.ts L20-L35](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L20-L35)

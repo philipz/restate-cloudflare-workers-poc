@@ -108,35 +108,32 @@ When a workflow executes, Restate builds an **execution journal**—a log of all
 
 ```mermaid
 sequenceDiagram
-  participant Restate Server
-  participant (Journal Storage)
-  participant Cloudflare Worker
-  participant (Execution Unit)
-  participant External API
-  participant (Stripe)
+  participant p1 as Restate Server<br/>(Journal Storage)
+  participant p2 as Cloudflare Worker<br/>(Execution Unit)
+  participant p3 as External API<br/>(Stripe)
 
-  note over Restate Server,(Stripe): Initial Execution
-  Restate Server->>Cloudflare Worker: Invoke Checkout.process()
-  Cloudflare Worker->>Restate Server: Journal Entry: "reserve-ticket" START
-  note over Cloudflare Worker,(Execution Unit): Execute ticket.reserve()
-  Cloudflare Worker->>Restate Server: Journal Entry: "reserve-ticket" SUCCESS
-  Cloudflare Worker->>Restate Server: Journal Entry: "process-payment" START
-  Cloudflare Worker->>External API: POST /charge {amount: 100}
-  note over Cloudflare Worker,(Stripe): Network delay...
-  note over Cloudflare Worker,(Execution Unit): ⚠️ Worker crashes (timeout)
-  note over Restate Server,(Stripe): Replay After Crash
-  Restate Server->>Cloudflare Worker: Invoke Checkout.process()
-  Cloudflare Worker->>Restate Server: (new Worker instance)
-  Restate Server-->>Cloudflare Worker: Check journal for "reserve-ticket"
-  Cloudflare Worker->>Restate Server: Found: SUCCESS (skip execution)
-  Restate Server-->>Cloudflare Worker: Check journal for "process-payment"
-  Cloudflare Worker->>External API: Not found (execute)
-  External API-->>Cloudflare Worker: POST /charge {amount: 100}
-  Cloudflare Worker->>Restate Server: 200 OK {charge_id: "ch_123"}
-  Cloudflare Worker->>Restate Server: Journal Entry: "process-payment" SUCCESS
-  note over Cloudflare Worker,(Execution Unit): Execute sendEmail()
-  Cloudflare Worker->>Restate Server: {charge_id: "ch_123"}
-  Cloudflare Worker-->>Restate Server: Journal Entry: "send-email" START
+  note over p1,p3: Initial Execution
+  p1->>p2: Invoke Checkout.process()
+  p2->>p1: Journal Entry: "reserve-ticket" START
+  note over p2: Execute ticket.reserve()
+  p2->>p1: Journal Entry: "reserve-ticket" SUCCESS
+  p2->>p1: Journal Entry: "process-payment" START
+  p2->>p3: POST /charge {amount: 100}
+  note over p2,p3: Network delay...
+  note over p2: ⚠️ Worker crashes (timeout)
+  note over p1,p3: Replay After Crash
+  p1->>p2: Invoke Checkout.process()<br/>(new Worker instance)
+  p2->>p1: Check journal for "reserve-ticket"
+  p1-->>p2: Found: SUCCESS (skip execution)
+  p2->>p1: Check journal for "process-payment"
+  p1-->>p2: Not found (execute)
+  p2->>p3: POST /charge {amount: 100}
+  p3-->>p2: 200 OK {charge_id: "ch_123"}
+  p2->>p1: Journal Entry: "process-payment" SUCCESS<br/>{charge_id: "ch_123"}
+  p2->>p1: Journal Entry: "send-email" START
+  note over p2: Execute sendEmail()
+  p2->>p1: Journal Entry: "send-email" SUCCESS
+  p2-->>p1: Workflow complete
 ```
 
 **Diagram: Execution Journal and Crash Recovery Flow**

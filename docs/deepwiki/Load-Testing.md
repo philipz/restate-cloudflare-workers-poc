@@ -333,43 +333,43 @@ The following diagram illustrates the end-to-end flow of a single load test iter
 
 ```mermaid
 sequenceDiagram
-  participant K6 Virtual User
-  participant load-test.js / load-test-local.js
-  participant Restate Server
-  participant Checkout Workflow
-  participant Ticket Virtual Object
+  participant p1 as K6 Virtual User
+  participant p2 as load-test.js / load-test-local.js
+  participant p3 as Restate Server
+  participant p4 as Checkout Workflow
+  participant p5 as Ticket Virtual Object
 
-  K6 Virtual User->>load-test.js / load-test-local.js: "Execute iteration __ITER"
-  load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "Generate random seat: seat-${randomIntBetween(1, 50)}"
-  load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "Generate user ID: user-${__VU}-${__ITER}"
-  load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "Select payment method (80/10/10 distribution)"
-  load-test.js / load-test-local.js->>Restate Server: "POST /Checkout/process
-  Restate Server->>Checkout Workflow: {ticketId, userId, paymentMethodId}"
+  p1->>p2: "Execute iteration __ITER"
+  p2->>p2: "Generate random seat: seat-${randomIntBetween(1, 50)}"
+  p2->>p2: "Generate user ID: user-${__VU}-${__ITER}"
+  p2->>p2: "Select payment method (80/10/10 distribution)"
+  p2->>p3: "POST /Checkout/process<br/>{ticketId, userId, paymentMethodId}"
+  p3->>p4: "Invoke process() with durable context"
   alt Payment Success
-    Checkout Workflow->>Ticket Virtual Object: "Invoke process() with durable context"
-    Ticket Virtual Object-->>Checkout Workflow: "Reserve → Pay → Confirm"
-    Checkout Workflow-->>Restate Server: "Status: SOLD"
-    Restate Server-->>load-test.js / load-test-local.js: "Return 'Booking Confirmed'"
-    load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "HTTP 200 + 'Booking Confirmed'"
+    p4->>p5: "Reserve → Pay → Confirm"
+    p5-->>p4: "Status: SOLD"
+    p4-->>p3: "Return 'Booking Confirmed'"
+    p3-->>p2: "HTTP 200 + 'Booking Confirmed'"
+    p2->>p2: "isSuccessful = true"
   else Seat Already Sold
-    Checkout Workflow->>Ticket Virtual Object: "isSuccessful = true"
-    Ticket Virtual Object-->>Checkout Workflow: "Reserve attempt"
-    Checkout Workflow-->>Restate Server: "TerminalError: already sold"
-    Restate Server-->>load-test.js / load-test-local.js: "Throw error"
-    load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "HTTP 500 + 'already sold'"
+    p4->>p5: "Reserve attempt"
+    p5-->>p4: "TerminalError: already sold"
+    p4-->>p3: "Throw error"
+    p3-->>p2: "HTTP 500 + 'already sold'"
+    p2->>p2: "isSoldOut = true"
   else Payment Declined
-    Checkout Workflow->>Ticket Virtual Object: "isSoldOut = true"
-    Checkout Workflow-->>Restate Server: "Reserve → Pay (fail) → Release"
-    Restate Server-->>load-test.js / load-test-local.js: "Throw TerminalError: Payment declined"
-    load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "HTTP 500 + 'Payment declined'"
+    p4->>p5: "Reserve → Pay (fail) → Release"
+    p4-->>p3: "Throw TerminalError: Payment declined"
+    p3-->>p2: "HTTP 500 + 'Payment declined'"
+    p2->>p2: "isPaymentFailed = true"
   else Gateway Timeout
-    Checkout Workflow->>Ticket Virtual Object: "isPaymentFailed = true"
-    Checkout Workflow-->>Restate Server: "Reserve → Pay (error)"
-    Restate Server-->>load-test.js / load-test-local.js: "Throw error: Gateway timeout"
-    load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "HTTP 500 + 'Gateway timeout'"
+    p4->>p5: "Reserve → Pay (error)"
+    p4-->>p3: "Throw error: Gateway timeout"
+    p3-->>p2: "HTTP 500 + 'Gateway timeout'"
+    p2->>p2: "isGatewayTimeout = true"
   end
-  load-test.js / load-test-local.js->>K6 Virtual User: "isGatewayTimeout = true"
-  load-test.js / load-test-local.js->>load-test.js / load-test-local.js: "check(res, validations)"
+  p2->>p1: "check(res, validations)"
+  p2->>p2: "sleep(1)"
 ```
 
 **Sources:** [load-test.js L23-L70](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/load-test.js#L23-L70)

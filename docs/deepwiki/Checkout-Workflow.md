@@ -137,63 +137,58 @@ The workflow implements a distributed Saga with local transactions and compensat
 
 ```mermaid
 sequenceDiagram
-  participant Client
-  participant Restate Runtime
-  participant checkoutWorkflow.process
-  participant [src/checkout.ts:9]
-  participant ticketObject.reserve/confirm/release
-  participant [src/game.ts:18,45,62]
-  participant seatMapObject.set
-  participant [src/game.ts:95]
-  participant processPayment()
-  participant [src/utils/payment_new.ts]
-  participant sendEmail()
-  participant [src/utils/email.ts]
+  participant p1 as Client
+  participant p2 as Restate Runtime
+  participant p3 as checkoutWorkflow.process<br/>[src/checkout.ts:9]
+  participant p4 as ticketObject.reserve/confirm/release<br/>[src/game.ts:18,45,62]
+  participant p5 as seatMapObject.set<br/>[src/game.ts:95]
+  participant p6 as processPayment()<br/>[src/utils/payment_new.ts]
+  participant p7 as sendEmail()<br/>[src/utils/email.ts]
 
-  note over Client,[src/utils/email.ts]: Happy Path: Payment Success
-  Client->>Restate Runtime: POST /Checkout/process
-  Restate Runtime->>checkoutWorkflow.process: {ticketId:"seat-1", userId:"user-1", paymentMethodId:"card_success"}
-  checkoutWorkflow.process->>checkoutWorkflow.process: Invoke process(ctx, request)
-  checkoutWorkflow.process->>ticketObject.reserve/confirm/release: Create ticket client [line 12]
-  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: AVAILABLE → RESERVED<br/>reservedBy: "user-1"<br/>reservedUntil: now+15min
-  ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: Create seatMap client [line 13]
-  checkoutWorkflow.process->>seatMapObject.set: ticket.reserve(userId)
-  note over seatMapObject.set,[src/game.ts:95]: map["seat-1"] = "RESERVED"
-  seatMapObject.set-->>checkoutWorkflow.process: true
-  checkoutWorkflow.process->>checkoutWorkflow.process: seatMap.set({seatId:"seat-1", status:"RESERVED"})
-  checkoutWorkflow.process->>processPayment(): true
-  note over processPayment(),[src/utils/payment_new.ts]: Simulated 500ms delay<br/>Return success
-  processPayment()-->>checkoutWorkflow.process: ctx.run("process-payment") [line 22]
-  checkoutWorkflow.process->>ticketObject.reserve/confirm/release: processPayment(100, "card_success")
-  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: RESERVED → SOLD<br/>Clear reservedUntil
-  ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: success
-  checkoutWorkflow.process->>seatMapObject.set: ticket.confirm()
-  note over seatMapObject.set,[src/game.ts:95]: map["seat-1"] = "SOLD"<br/>Check if soldCount >= 50
-  seatMapObject.set-->>checkoutWorkflow.process: true
-  checkoutWorkflow.process->>checkoutWorkflow.process: seatMap.set({seatId:"seat-1", status:"SOLD"})
-  checkoutWorkflow.process->>sendEmail(): true
-  sendEmail()-->>checkoutWorkflow.process: ctx.run("send-email") [line 43]
-  checkoutWorkflow.process-->>Restate Runtime: sendEmail(userId, "Booking Confirmed", ...)
-  Restate Runtime-->>Client: void
-  note over Client,[src/utils/email.ts]: Error Path: Payment Decline (Saga Compensation)
-  Client->>Restate Runtime: "Booking Confirmed"
-  Restate Runtime->>checkoutWorkflow.process: 200 OK
-  checkoutWorkflow.process->>ticketObject.reserve/confirm/release: POST /Checkout/process
-  ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: {ticketId:"seat-2", paymentMethodId:"card_decline"}
-  checkoutWorkflow.process->>seatMapObject.set: Invoke process(ctx, request)
-  seatMapObject.set-->>checkoutWorkflow.process: ticket.reserve(userId)
-  checkoutWorkflow.process->>checkoutWorkflow.process: true (RESERVED)
-  checkoutWorkflow.process->>processPayment(): seatMap.set({seatId:"seat-2", status:"RESERVED"})
-  processPayment()-->>checkoutWorkflow.process: true
-  note over checkoutWorkflow.process,[src/checkout.ts:9]: Compensation triggered [line 30-34]
-  checkoutWorkflow.process->>ticketObject.reserve/confirm/release: ctx.run("process-payment")
-  note over ticketObject.reserve/confirm/release,[src/game.ts:18,45,62]: State: RESERVED → AVAILABLE<br/>Clear reservedBy, reservedUntil
-  ticketObject.reserve/confirm/release-->>checkoutWorkflow.process: processPayment(100, "card_decline")
-  checkoutWorkflow.process->>seatMapObject.set: throw Error("Payment declined")
-  note over seatMapObject.set,[src/game.ts:95]: map["seat-2"] = "AVAILABLE"
-  seatMapObject.set-->>checkoutWorkflow.process: ticket.release()
-  checkoutWorkflow.process-->>Restate Runtime: true
-  Restate Runtime-->>Client: seatMap.set({seatId:"seat-2", status:"AVAILABLE"})
+  note over p1,p7: Happy Path: Payment Success
+  p1->>p2: POST /Checkout/process<br/>{ticketId:"seat-1", userId:"user-1", paymentMethodId:"card_success"}
+  p2->>p3: Invoke process(ctx, request)
+  p3->>p3: Create ticket client [line 12]<br/>Create seatMap client [line 13]
+  p3->>p4: ticket.reserve(userId)
+  note over p4: State: AVAILABLE → RESERVED<br/>reservedBy: "user-1"<br/>reservedUntil: now+15min
+  p4-->>p3: true
+  p3->>p5: seatMap.set({seatId:"seat-1", status:"RESERVED"})
+  note over p5: map["seat-1"] = "RESERVED"
+  p5-->>p3: true
+  p3->>p3: ctx.run("process-payment") [line 22]
+  p3->>p6: processPayment(100, "card_success")
+  note over p6: Simulated 500ms delay<br/>Return success
+  p6-->>p3: success
+  p3->>p4: ticket.confirm()
+  note over p4: State: RESERVED → SOLD<br/>Clear reservedUntil
+  p4-->>p3: true
+  p3->>p5: seatMap.set({seatId:"seat-1", status:"SOLD"})
+  note over p5: map["seat-1"] = "SOLD"<br/>Check if soldCount >= 50
+  p5-->>p3: true
+  p3->>p3: ctx.run("send-email") [line 43]
+  p3->>p7: sendEmail(userId, "Booking Confirmed", ...)
+  p7-->>p3: void
+  p3-->>p2: "Booking Confirmed"
+  p2-->>p1: 200 OK
+  note over p1,p7: Error Path: Payment Decline (Saga Compensation)
+  p1->>p2: POST /Checkout/process<br/>{ticketId:"seat-2", paymentMethodId:"card_decline"}
+  p2->>p3: Invoke process(ctx, request)
+  p3->>p4: ticket.reserve(userId)
+  p4-->>p3: true (RESERVED)
+  p3->>p5: seatMap.set({seatId:"seat-2", status:"RESERVED"})
+  p5-->>p3: true
+  p3->>p3: ctx.run("process-payment")
+  p3->>p6: processPayment(100, "card_decline")
+  p6-->>p3: throw Error("Payment declined")
+  note over p3: Compensation triggered [line 30-34]
+  p3->>p4: ticket.release()
+  note over p4: State: RESERVED → AVAILABLE<br/>Clear reservedBy, reservedUntil
+  p4-->>p3: true
+  p3->>p5: seatMap.set({seatId:"seat-2", status:"AVAILABLE"})
+  note over p5: map["seat-2"] = "AVAILABLE"
+  p5-->>p3: true
+  p3-->>p2: throw TerminalError("Payment failed")
+  p2-->>p1: 500 Internal Server Error
 ```
 
 **Sources:** [src/checkout.ts L9-L50](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L9-L50)

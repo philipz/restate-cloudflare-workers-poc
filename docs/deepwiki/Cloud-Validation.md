@@ -151,27 +151,27 @@ The `test-cloud.sh` script executes three validation tests using `curl` to send 
 
 ```mermaid
 sequenceDiagram
-  participant test-cloud.sh
-  participant .env File
-  participant Restate Cloud Ingress
-  participant Ticket Virtual Object
+  participant p1 as test-cloud.sh
+  participant p2 as .env File
+  participant p3 as Restate Cloud Ingress
+  participant p4 as Ticket Virtual Object
 
-  test-cloud.sh->>.env File: Load RESTATE_AUTH_TOKEN
-  .env File-->>test-cloud.sh: Token loaded
-  note over test-cloud.sh,Restate Cloud Ingress: Test 1: Successful Booking
-  test-cloud.sh->>Restate Cloud Ingress: POST /Checkout/process
-  Restate Cloud Ingress-->>test-cloud.sh: Auth: Bearer token
-  test-cloud.sh->>test-cloud.sh: seat: cloud-seat-100
-  note over test-cloud.sh,Restate Cloud Ingress: Test 2: Payment Failure
-  test-cloud.sh->>Restate Cloud Ingress: payment: card_success
-  Restate Cloud Ingress-->>test-cloud.sh: "Booking Confirmed"
-  test-cloud.sh->>test-cloud.sh: Validate response contains "Booking Confirmed"
-  note over test-cloud.sh,Restate Cloud Ingress: Test 3: Ticket Status Query
-  test-cloud.sh->>Restate Cloud Ingress: POST /Checkout/process
-  Restate Cloud Ingress-->>Ticket Virtual Object: Auth: Bearer token
-  Ticket Virtual Object-->>Restate Cloud Ingress: seat: cloud-seat-101
-  Restate Cloud Ingress-->>test-cloud.sh: payment: card_decline
-  test-cloud.sh->>test-cloud.sh: "Payment failed"
+  p1->>p2: Load RESTATE_AUTH_TOKEN
+  p2-->>p1: Token loaded<br/>POST /Checkout/process<br/>Auth: Bearer token<br/>seat: cloud-seat-100
+  note over p1,p3: Test 1: Successful Booking
+  p1->>p3: payment: card_success
+  p3-->>p1: "Booking Confirmed"
+  p1->>p1: Validate response contains "Booking Confirmed"<br/>POST /Checkout/process<br/>Auth: Bearer token<br/>seat: cloud-seat-101
+  note over p1,p3: Test 2: Payment Failure
+  p1->>p3: payment: card_decline
+  p3-->>p1: "Payment failed"
+  p1->>p1: Validate response contains "Payment failed"
+  note over p1,p3: Test 3: Ticket Status Query
+  p1->>p3: POST /Ticket/cloud-seat-100/get<br/>Auth: Bearer token
+  p3-->>p4: Query state
+  p4-->>p3: State: SOLD
+  p3-->>p1: {"status": "SOLD", ...}
+  p1->>p1: Validate response contains "SOLD"
 ```
 
 **Diagram: test-cloud.sh execution flow showing three sequential validation tests**

@@ -212,31 +212,29 @@ await ctx.run("process-payment", async () => {
 
 ```mermaid
 sequenceDiagram
-  participant Client
-  participant Restate Server
-  participant (Journal Storage)
-  participant Cloudflare Worker
-  participant (Execution)
-  participant Payment Gateway
+  participant p1 as Client
+  participant p2 as Restate Server<br/>(Journal Storage)
+  participant p3 as Cloudflare Worker<br/>(Execution)
+  participant p4 as Payment Gateway
 
-  note over Client,Payment Gateway: Initial Execution
-  Client->>Restate Server: POST /Checkout/process
-  Restate Server->>Cloudflare Worker: Invoke with empty journal
-  Cloudflare Worker->>Restate Server: Journal Entry 1:
-  Restate Server->>Cloudflare Worker: objectClient.reserve() called
-  Cloudflare Worker->>Restate Server: Ticket reserved, continue
-  Cloudflare Worker->>Payment Gateway: Journal Entry 2:
-  note over Cloudflare Worker,Payment Gateway: Worker crashes during payment!
-  Cloudflare Worker-->>Restate Server: ctx.run("process-payment") started
-  note over Client,Payment Gateway: Replay Execution
-  Restate Server->>Cloudflare Worker: POST /charge
-  note over Cloudflare Worker,(Execution): Replay: Skip reserve()<br/>(already in journal)
-  note over Cloudflare Worker,(Execution): Replay: Find ctx.run("process-payment")<br/>result not in journal
-  Cloudflare Worker->>Payment Gateway: Connection lost
-  Payment Gateway-->>Cloudflare Worker: Invoke with journal entries 1-2
-  Cloudflare Worker->>Restate Server: POST /charge (retry)
-  Cloudflare Worker->>Restate Server: Success
-  Restate Server-->>Client: Journal Entry 3:
+  note over p1,p4: Initial Execution
+  p1->>p2: POST /Checkout/process
+  p2->>p3: Invoke with empty journal
+  p3->>p2: Journal Entry 1:<br/>objectClient.reserve() called
+  p2->>p3: Ticket reserved, continue
+  p3->>p2: Journal Entry 2:<br/>ctx.run("process-payment") started
+  p3->>p4: POST /charge
+  note over p3,p4: Worker crashes during payment!
+  p3-->>p2: Connection lost
+  note over p1,p4: Replay Execution
+  p2->>p3: Invoke with journal entries 1-2
+  note over p3: Replay: Skip reserve()<br/>(already in journal)
+  note over p3: Replay: Find ctx.run("process-payment")<br/>result not in journal
+  p3->>p4: POST /charge (retry)
+  p4-->>p3: Success
+  p3->>p2: Journal Entry 3:<br/>ctx.run("process-payment") = success
+  p3->>p2: Journal Entry 4:<br/>objectClient.confirm() called
+  p2-->>p1: 200 OK "Booking Confirmed"
 ```
 
 **Sources:** [src/checkout.ts L9-L49](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/src/checkout.ts#L9-L49)

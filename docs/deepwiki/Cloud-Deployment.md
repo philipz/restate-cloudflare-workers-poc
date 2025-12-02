@@ -98,20 +98,20 @@ The Worker deployment is configured through `wrangler.toml`:
 
 ```mermaid
 sequenceDiagram
-  participant Developer
-  participant wrangler CLI
-  participant Cloudflare API
-  participant Cloudflare Edge
+  participant p1 as Developer
+  participant p2 as wrangler CLI
+  participant p3 as Cloudflare API
+  participant p4 as Cloudflare Edge
 
-  Developer->>wrangler CLI: "npm install"
-  note over wrangler CLI: Install dependencies<br/>(@restatedev/restate-sdk-cloudflare)
-  Developer->>wrangler CLI: "npx wrangler deploy"
-  wrangler CLI->>wrangler CLI: "Compile TypeScript
-  wrangler CLI->>wrangler CLI: (src/index.ts)"
-  wrangler CLI->>Cloudflare API: "Bundle with esbuild"
-  Cloudflare API->>Cloudflare Edge: "Upload Worker bundle"
-  Cloudflare Edge-->>wrangler CLI: "Deploy to edge network"
-  wrangler CLI-->>Developer: "Deployment URL"
+  p1->>p2: "npm install"
+  note over p2: Install dependencies<br/>(@restatedev/restate-sdk-cloudflare)
+  p1->>p2: "npx wrangler deploy"
+  p2->>p2: "Compile TypeScript<br/>(src/index.ts)"
+  p2->>p2: "Bundle with esbuild"
+  p2->>p3: "Upload Worker bundle"
+  p3->>p4: "Deploy to edge network"
+  p4-->>p2: "Deployment URL"
+  p2-->>p1: "https://nexus-poc.philipz.workers.dev"
 ```
 
 **Sources**: [README.md L36-L41](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/README.md#L36-L41)
@@ -333,20 +333,18 @@ curl -X POST "$RESTATE_CLOUD_URL/Checkout/process" \
 
 ```mermaid
 sequenceDiagram
-  participant restate CLI
-  participant Restate Cloud
-  participant Service Registry
-  participant Cloudflare Worker
-  participant nexus-poc.philipz.workers.dev
+  participant p1 as restate CLI
+  participant p2 as Restate Cloud<br/>Service Registry
+  participant p3 as Cloudflare Worker<br/>nexus-poc.philipz.workers.dev
 
-  restate CLI->>Restate Cloud: "deployments register
-  Restate Cloud->>Cloudflare Worker: https://nexus-poc.philipz.workers.dev"
-  Cloudflare Worker->>Cloudflare Worker: "GET /
-  Cloudflare Worker-->>Restate Cloud: HTTP Discovery Request"
-  Restate Cloud->>Restate Cloud: "createEndpointHandler()
-  Restate Cloud->>Restate Cloud: enumerates services"
-  Restate Cloud-->>restate CLI: "Service Descriptor JSON
-  note over Restate Cloud,Service Registry: Restate can now invoke<br/>services at Worker URL
+  p1->>p2: "deployments register<br/>https://nexus-poc.philipz.workers.dev"
+  p2->>p3: "GET /<br/>HTTP Discovery Request"
+  p3->>p3: "createEndpointHandler()<br/>enumerates services"
+  p3-->>p2: "Service Descriptor JSON<br/>{Ticket, SeatMap, Checkout}"<br/>"Parse service methods:<br/>- Ticket: reserve, confirm, release, get<br/>- SeatMap: set, resetAll, get
+  p2->>p2: - Checkout: process"
+  p2->>p2: "Store deployment URL<br/>in service registry"
+  p2-->>p1: "Registration successful"
+  note over p2: Restate can now invoke<br/>services at Worker URL
 ```
 
 **Sources**: [README.md L44-L48](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/README.md#L44-L48)

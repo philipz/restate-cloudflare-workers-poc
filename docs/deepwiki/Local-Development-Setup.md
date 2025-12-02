@@ -201,24 +201,21 @@ This command:
 
 ```mermaid
 sequenceDiagram
-  participant Developer
-  participant Restate Admin API
-  participant localhost:9070
-  participant Restate Ingress
-  participant localhost:8080
-  participant Cloudflare Worker
-  participant nexus-poc.workers.dev
+  participant p1 as Developer
+  participant p2 as Restate Admin API<br/>localhost:9070
+  participant p3 as Restate Ingress<br/>localhost:8080
+  participant p4 as Cloudflare Worker<br/>nexus-poc.workers.dev
 
-  Developer->>Restate Admin API: POST /deployments
-  Restate Admin API->>Cloudflare Worker: {"uri": "https://nexus-poc...workers.dev"}
-  Cloudflare Worker-->>Restate Admin API: GET /discover (introspection)
-  Restate Admin API->>Restate Admin API: Service manifest:
-  Restate Admin API-->>Developer: Ticket, SeatMap, Checkout
-  note over Restate Ingress,localhost:8080: Services now available
-  Developer->>Restate Ingress: Register services
-  Restate Ingress->>Cloudflare Worker: 200 OK
-  Cloudflare Worker-->>Restate Ingress: POST /Checkout/process
-  Restate Ingress-->>Developer: Invoke Checkout.process()
+  p1->>p2: POST /deployments<br/>{"uri": "https://nexus-poc...workers.dev"}
+  p2->>p4: GET /discover (introspection)
+  p4-->>p2: Service manifest:<br/>Ticket, SeatMap, Checkout
+  p2->>p2: Register services
+  p2-->>p1: 200 OK
+  note over p3: Services now available
+  p1->>p3: POST /Checkout/process
+  p3->>p4: Invoke Checkout.process()
+  p4-->>p3: Response
+  p3-->>p1: Result
 ```
 
 **Sources:** [README.md L36-L48](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/README.md#L36-L48)

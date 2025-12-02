@@ -175,38 +175,37 @@ end
 
 ```mermaid
 sequenceDiagram
-  participant Developer
-  participant test-all.sh / test-cloud.sh
-  participant Restate Server
-  participant (Local or Cloud)
-  participant Cloudflare Worker
-  participant Assertion Logic
+  participant p1 as Developer
+  participant p2 as test-all.sh / test-cloud.sh
+  participant p3 as Restate Server<br/>(Local or Cloud)
+  participant p4 as Cloudflare Worker
+  participant p5 as Assertion Logic
 
-  Developer->>test-all.sh / test-cloud.sh: Execute ./test-all.sh
-  note over test-all.sh / test-cloud.sh: Test 1: Happy Path
-  test-all.sh / test-cloud.sh->>Restate Server: "POST /Checkout/process
-  Restate Server->>Cloudflare Worker: {ticketId, userId, paymentMethodId: 'card_success'}"
-  Cloudflare Worker-->>Restate Server: Invoke Checkout.process()
-  Restate Server-->>test-all.sh / test-cloud.sh: "Booking Confirmed"
-  test-all.sh / test-cloud.sh->>Assertion Logic: 200 OK
-  test-all.sh / test-cloud.sh->>Restate Server: Check response contains "Booking Confirmed"
-  Restate Server->>Cloudflare Worker: "POST /Ticket/test-seat-1/get"
-  Cloudflare Worker-->>Restate Server: Invoke Ticket.get()
-  Restate Server-->>test-all.sh / test-cloud.sh: "{status: 'SOLD', reservedBy: 'test-user-1'}"
-  test-all.sh / test-cloud.sh->>Assertion Logic: 200 OK
-  note over test-all.sh / test-cloud.sh: Test 2: Saga Compensation
-  test-all.sh / test-cloud.sh->>Restate Server: Check status === "SOLD"
-  Restate Server->>Cloudflare Worker: "POST /Checkout/process
-  Cloudflare Worker-->>Restate Server: {..., paymentMethodId: 'card_decline'}"
-  Restate Server-->>test-all.sh / test-cloud.sh: Invoke Checkout.process()
-  test-all.sh / test-cloud.sh->>Assertion Logic: "Payment failed: Payment declined"
-  test-all.sh / test-cloud.sh->>Restate Server: 500 Error
-  Restate Server->>Cloudflare Worker: Check error contains "Payment declined"
-  Cloudflare Worker-->>Restate Server: "POST /Ticket/test-seat-2/get"
-  Restate Server-->>test-all.sh / test-cloud.sh: Invoke Ticket.get()
-  test-all.sh / test-cloud.sh->>Assertion Logic: "{status: 'AVAILABLE', reservedBy: null}"
-  note over test-all.sh / test-cloud.sh: Tests 3-7: Continue pattern...
-  test-all.sh / test-cloud.sh->>Developer: 200 OK
+  p1->>p2: Execute ./test-all.sh
+  note over p2: Test 1: Happy Path
+  p2->>p3: "POST /Checkout/process<br/>{ticketId, userId, paymentMethodId: 'card_success'}"
+  p3->>p4: Invoke Checkout.process()
+  p4-->>p3: "Booking Confirmed"
+  p3-->>p2: 200 OK
+  p2->>p5: Check response contains "Booking Confirmed"
+  p2->>p3: "POST /Ticket/test-seat-1/get"
+  p3->>p4: Invoke Ticket.get()
+  p4-->>p3: "{status: 'SOLD', reservedBy: 'test-user-1'}"
+  p3-->>p2: 200 OK
+  p2->>p5: Check status === "SOLD"
+  note over p2: Test 2: Saga Compensation
+  p2->>p3: "POST /Checkout/process<br/>{..., paymentMethodId: 'card_decline'}"
+  p3->>p4: Invoke Checkout.process()
+  p4-->>p3: "Payment failed: Payment declined"
+  p3-->>p2: 500 Error
+  p2->>p5: Check error contains "Payment declined"
+  p2->>p3: "POST /Ticket/test-seat-2/get"
+  p3->>p4: Invoke Ticket.get()
+  p4-->>p3: "{status: 'AVAILABLE', reservedBy: null}"
+  p3-->>p2: 200 OK
+  p2->>p5: Check status === "AVAILABLE" (compensation successful)
+  note over p2: Tests 3-7: Continue pattern...
+  p2->>p1: Print summary:<br/>Total: X, Passed: Y, Failed: Z
 ```
 
 **Sources**: [test-all.sh L56-L226](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/test-all.sh#L56-L226)
@@ -217,27 +216,26 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant Developer
-  participant K6 Load Test
-  participant load-test.js
-  participant Restate Cloud
-  participant Cloudflare Worker
+  participant p1 as Developer
+  participant p2 as K6 Load Test<br/>load-test.js
+  participant p3 as Restate Cloud
+  participant p4 as Cloudflare Worker
 
-  Developer->>K6 Load Test: k6 run -e RESTATE_AUTH_TOKEN=$TOKEN
-  note over K6 Load Test,load-test.js: Ramp up: 10s to 10 VUs
+  p1->>p2: k6 run -e RESTATE_AUTH_TOKEN=$TOKEN<br/>-e VUS=10 -e DURATION=60s
+  note over p2: Ramp up: 10s to 10 VUs
   loop For each VU iteration
-    K6 Load Test->>K6 Load Test: -e VUS=10 -e DURATION=60s
-    K6 Load Test->>K6 Load Test: Generate random seatId (1-50)
-    K6 Load Test->>Restate Cloud: Generate random payment (80% success, 10% decline, 10% error)
-    Restate Cloud->>Cloudflare Worker: "POST /Checkout/process
-    Cloudflare Worker-->>Restate Cloud: Header: Authorization: Bearer $TOKEN"
-    Restate Cloud-->>K6 Load Test: Invoke Checkout.process()
-    K6 Load Test->>K6 Load Test: Result (success/error)
-    K6 Load Test->>K6 Load Test: HTTP response
+    p2->>p2: Generate random seatId (1-50)
+    p2->>p2: Generate random payment (80% success, 10% decline, 10% error)
+    p2->>p3: "POST /Checkout/process<br/>Header: Authorization: Bearer $TOKEN"
+    p3->>p4: Invoke Checkout.process()
+    p4-->>p3: Result (success/error)
+    p3-->>p2: HTTP response
+    p2->>p2: Check: status === 200 OR 500<br/>Validate: "Booking Confirmed" OR<br/>"already sold" OR<br/>"Payment declined" OR
+    p2->>p2: "Gateway timeout"<br/>Report metrics:<br/>- http_req_duration (p95 < 5s)<br/>- http_req_failed (rate < 0.1)
   end
-  note over K6 Load Test,load-test.js: Steady state: 60s at 10 VUs
-  note over K6 Load Test,load-test.js: Ramp down: 10s to 0 VUs
-  K6 Load Test->>Developer: Check: status === 200 OR 500
+  note over p2: Steady state: 60s at 10 VUs
+  note over p2: Ramp down: 10s to 0 VUs
+  p2->>p1: - Success/failure distribution
 ```
 
 **Sources**: [load-test.js L1-L72](https://github.com/philipz/restate-cloudflare-workers-poc/blob/513fd0f5/load-test.js#L1-L72)

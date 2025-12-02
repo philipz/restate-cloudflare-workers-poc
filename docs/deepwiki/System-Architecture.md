@@ -212,9 +212,6 @@ CheckoutFlow -.->|"ctx.objectClient"| TicketHandlers
 CheckoutFlow -.->|"ctx.objectClient"| SeatMapHandlers
 CheckoutFlow -.->|"ctx.run"| Payment
 CheckoutFlow -.->|"ctx.run"| Email
-SeatMapHandlers -.-> VirtualObjects
-VirtualObjects -.->|"auto-reset at 50 SOLDctx.objectSendClient"| VirtualObjects
-VirtualObjects -.->|"ctx.objectClientbulk release"| VirtualObjects
 
 subgraph Utils ["Utilities"]
     Payment
@@ -238,6 +235,9 @@ subgraph VirtualObjects ["Virtual Objects(Actor Model - Serialized State)"]
     Ticket -.->|"exposes"| TicketHandlers
     SeatMap -.->|"manages"| SeatMapState
     SeatMap -.->|"exposes"| SeatMapHandlers
+    SeatMapHandlers -.-> TicketState
+    TicketState -.->|"auto-reset at 50 SOLDctx.objectSendClient"| TicketState
+    TicketHandlers -.->|"ctx.objectClientbulk release"| TicketHandlers
     SeatMapHandlers -.-> TicketHandlers
 end
 
@@ -350,37 +350,35 @@ Sources: [README.md L66-L84](https://github.com/philipz/restate-cloudflare-worke
 
 ```mermaid
 sequenceDiagram
-  participant Client 1
-  participant Client 2
-  participant Restate Server
-  participant Cloudflare Worker
-  participant ticketObject
-  participant key: seat-1
-  participant state: AVAILABLE
+  participant p1 as Client 1
+  participant p2 as Client 2
+  participant p3 as Restate Server
+  participant p4 as Cloudflare Worker
+  participant p5 as ticketObject<br/>key: seat-1<br/>state: AVAILABLE
 
-  note over Client 1,state: AVAILABLE: Concurrent requests for same seat
-  Client 1->>Restate Server: POST /Checkout/process
-  Client 2->>Restate Server: {ticketId: seat-1, userId: user-1}
-  Restate Server->>Restate Server: POST /Checkout/process
-  Restate Server->>Cloudflare Worker: {ticketId: seat-1, userId: user-2}
-  Cloudflare Worker->>Restate Server: Queue both requests
-  Restate Server->>Cloudflare Worker: for ticketObject(seat-1)
-  note over Cloudflare Worker,state: AVAILABLE: Request 1 executes first
-  Cloudflare Worker->>ticketObject: Invoke checkoutWorkflow (user-1)
-  ticketObject-->>Cloudflare Worker: objectClient.reserve(user-1)
-  Cloudflare Worker->>ticketObject: Invoke ticketObject.reserve(user-1)
-  Cloudflare Worker-->>Restate Server: ctx.get("state")
-  Restate Server-->>Cloudflare Worker: {status: AVAILABLE, ...}
-  note over Restate Server,Cloudflare Worker: Request 2 now processes
-  Restate Server->>Cloudflare Worker: ctx.set("state", {status: RESERVED, reservedBy: user-1})
-  Cloudflare Worker->>Restate Server: reserve() returns true
-  Restate Server->>Cloudflare Worker: Continue checkoutWorkflow (user-1)
-  Cloudflare Worker->>ticketObject: Invoke checkoutWorkflow (user-2)
-  ticketObject-->>Cloudflare Worker: objectClient.reserve(user-2)
-  Cloudflare Worker->>Cloudflare Worker: Invoke ticketObject.reserve(user-2)
-  Cloudflare Worker-->>Restate Server: ctx.get("state")
-  Restate Server-->>Client 1: {status: RESERVED, reservedBy: user-1}
-  Restate Server-->>Client 2: throw TerminalError
+  note over p1,p5: Concurrent requests for same seat
+  p1->>p3: POST /Checkout/process<br/>{ticketId: seat-1, userId: user-1}
+  p2->>p3: POST /Checkout/process<br/>{ticketId: seat-1, userId: user-2}
+  p3->>p3: Queue both requests<br/>for ticketObject(seat-1)
+  p3->>p4: Invoke checkoutWorkflow (user-1)
+  p4->>p3: objectClient.reserve(user-1)
+  p3->>p4: Invoke ticketObject.reserve(user-1)
+  note over p4,p5: Request 1 executes first
+  p4->>p5: ctx.get("state")
+  p5-->>p4: {status: AVAILABLE, ...}
+  p4->>p5: ctx.set("state", {status: RESERVED, reservedBy: user-1})
+  p4-->>p3: reserve() returns true
+  p3-->>p4: Continue checkoutWorkflow (user-1)
+  note over p3,p4: Request 2 now processes
+  p3->>p4: Invoke checkoutWorkflow (user-2)
+  p4->>p3: objectClient.reserve(user-2)
+  p3->>p4: Invoke ticketObject.reserve(user-2)
+  p4->>p5: ctx.get("state")
+  p5-->>p4: {status: RESERVED, reservedBy: user-1}
+  p4->>p4: throw TerminalError<br/>("Ticket is currently reserved")
+  p4-->>p3: Error
+  p3-->>p1: 200 OK "Booking Confirmed"
+  p3-->>p2: 500 Error "Ticket is currently reserved"
 ```
 
 **Concurrency Control Diagram**

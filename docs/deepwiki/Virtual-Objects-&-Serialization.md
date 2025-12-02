@@ -164,23 +164,22 @@ Virtual Objects interact with durable state through two core context methods:
 
 ```mermaid
 sequenceDiagram
-  participant Client
-  participant Restate Runtime
-  participant Cloudflare Worker
-  participant (Handler)
-  participant Restate State Store
+  participant p1 as Client
+  participant p2 as Restate Runtime
+  participant p3 as Cloudflare Worker<br/>(Handler)
+  participant p4 as Restate State Store
 
-  Client->>Restate Runtime: "POST /Ticket/seat-1/reserve"
-  Restate Runtime->>Restate State Store: "Read state for 'seat-1'"
-  Restate State Store-->>Restate Runtime: "{ status: 'AVAILABLE' }"
-  Restate Runtime->>Cloudflare Worker: "Invoke handler with state"
-  Cloudflare Worker->>Cloudflare Worker: "ctx.get('state')
-  Cloudflare Worker->>Cloudflare Worker: Returns cached state"
-  Cloudflare Worker->>Cloudflare Worker: "Business logic:
-  Cloudflare Worker-->>Restate Runtime: state.status = 'RESERVED'"
-  Restate Runtime->>Restate State Store: "ctx.set('state', state)
-  Restate State Store-->>Restate Runtime: Queues write"
-  Restate Runtime-->>Client: "Handler completes successfully"
+  p1->>p2: "POST /Ticket/seat-1/reserve"
+  p2->>p4: "Read state for 'seat-1'"
+  p4-->>p2: "{ status: 'AVAILABLE' }"
+  p2->>p3: "Invoke handler with state"
+  p3->>p3: "ctx.get('state')<br/>Returns cached state"
+  p3->>p3: "Business logic:<br/>state.status = 'RESERVED'"
+  p3->>p3: "ctx.set('state', state)<br/>Queues write"
+  p3-->>p2: "Handler completes successfully"
+  p2->>p4: "Atomic write: state = { status: 'RESERVED' }"
+  p4-->>p2: "Write confirmed"
+  p2-->>p1: "200 OK"
 ```
 
 ### Write Batching and Atomicity
@@ -341,25 +340,23 @@ The `resetAll` handler in [src/game.ts L118-L132](https://github.com/philipz/res
 
 ```mermaid
 sequenceDiagram
-  participant Client
-  participant SeatMap
-  participant (key: 'global')
-  participant Ticket
-  participant (key: 'seat-1')
-  participant (key: 'seat-2')
-  participant (key: 'seat-50')
+  participant p1 as Client
+  participant p2 as SeatMap<br/>(key: 'global')
+  participant p3 as Ticket<br/>(key: 'seat-1')
+  participant p4 as Ticket<br/>(key: 'seat-2')
+  participant p5 as Ticket<br/>(key: 'seat-50')
 
-  Client->>SeatMap: "resetAll()"
-  note over SeatMap,(key: 'global'): "Reset local map state<br/>Lines 122-126"
-  SeatMap->>SeatMap: "map[seat-1] = AVAILABLE
-  note over SeatMap,(key: 'global'): "Release all Ticket objects<br/>Lines 129-131"
-  SeatMap->>Ticket: ...
-  Ticket-->>SeatMap: map[seat-50] = AVAILABLE"
-  SeatMap->>(key: 'seat-2'): "ctx.objectClient(ticketObject, 'seat-1').release()"
-  (key: 'seat-2')-->>SeatMap: "Success"
-  SeatMap->>(key: 'seat-50'): "ctx.objectClient(ticketObject, 'seat-2').release()"
-  (key: 'seat-50')-->>SeatMap: "Success"
-  SeatMap-->>Client: "ctx.objectClient(ticketObject, 'seat-50').release()"
+  p1->>p2: "resetAll()"<br/>"map[seat-1] = AVAILABLE
+  note over p2: "Reset local map state<br/>Lines 122-126"
+  p2->>p2: ...<br/>map[seat-50] = AVAILABLE"
+  note over p2: "Release all Ticket objects<br/>Lines 129-131"
+  p2->>p3: "ctx.objectClient(ticketObject, 'seat-1').release()"
+  p3-->>p2: "Success"
+  p2->>p4: "ctx.objectClient(ticketObject, 'seat-2').release()"
+  p4-->>p2: "Success"
+  p2->>p5: "ctx.objectClient(ticketObject, 'seat-50').release()"
+  p5-->>p2: "Success"
+  p2-->>p1: "Complete"
 ```
 
 **Code Implementation**

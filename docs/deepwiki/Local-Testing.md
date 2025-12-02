@@ -284,34 +284,34 @@ This test validates the `get` handler from [src/game.ts L76-L82](https://github.
 
 ```mermaid
 sequenceDiagram
-  participant test-all.sh
-  participant curl & (PID1)
-  participant curl & (PID2)
-  participant curl & (PID3)
-  participant Restate Server
-  participant Ticket Object (test-seat-5)
+  participant p1 as test-all.sh
+  participant p2 as curl & (PID1)
+  participant p3 as curl & (PID2)
+  participant p4 as curl & (PID3)
+  participant p5 as Restate Server
+  participant p6 as Ticket Object (test-seat-5)
 
-  test-all.sh->>curl & (PID1): Launch background request
-  test-all.sh->>curl & (PID2): userId: concurrent-user-1
-  test-all.sh->>curl & (PID3): Launch background request
-  note over curl & (PID1),curl & (PID3): All 3 requests sent simultaneously
-  curl & (PID1)->>Restate Server: userId: concurrent-user-2
-  curl & (PID2)->>Restate Server: Launch background request
-  curl & (PID3)->>Restate Server: userId: concurrent-user-3
-  note over Restate Server: Serializes requests by Virtual Object key
-  Restate Server->>Ticket Object (test-seat-5): POST /Checkout/process
-  Ticket Object (test-seat-5)-->>Restate Server: POST /Checkout/process
-  Restate Server-->>curl & (PID1): POST /Checkout/process
-  Restate Server->>Ticket Object (test-seat-5): Process Request 1 (reserve)
-  Ticket Object (test-seat-5)-->>Restate Server: SUCCESS (AVAILABLE → RESERVED)
-  Restate Server-->>curl & (PID2): Continue workflow (payment, confirm)
-  Restate Server->>Ticket Object (test-seat-5): Process Request 2 (reserve)
-  Ticket Object (test-seat-5)-->>Restate Server: FAIL (already RESERVED)
-  Restate Server-->>curl & (PID3): TerminalError
-  test-all.sh->>test-all.sh: Process Request 3 (reserve)
-  test-all.sh->>test-all.sh: FAIL (already RESERVED)
-  test-all.sh->>Restate Server: TerminalError
-  Restate Server-->>test-all.sh: wait PID1, PID2, PID3
+  p1->>p2: Launch background request<br/>userId: concurrent-user-1
+  p1->>p3: Launch background request<br/>userId: concurrent-user-2
+  p1->>p4: Launch background request<br/>userId: concurrent-user-3
+  note over p2,p4: All 3 requests sent simultaneously
+  p2->>p5: POST /Checkout/process
+  p3->>p5: POST /Checkout/process
+  p4->>p5: POST /Checkout/process
+  note over p5: Serializes requests by Virtual Object key
+  p5->>p6: Process Request 1 (reserve)
+  p6-->>p5: SUCCESS (AVAILABLE → RESERVED)
+  p5-->>p2: Continue workflow (payment, confirm)
+  p5->>p6: Process Request 2 (reserve)
+  p6-->>p5: FAIL (already RESERVED)
+  p5-->>p3: TerminalError
+  p5->>p6: Process Request 3 (reserve)
+  p6-->>p5: FAIL (already RESERVED)
+  p5-->>p4: TerminalError
+  p1->>p1: wait PID1, PID2, PID3
+  p1->>p1: sleep 2
+  p1->>p5: POST /Ticket/test-seat-5/get
+  p5-->>p1: State: SOLD
 ```
 
 **Validation Steps:**

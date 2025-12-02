@@ -134,32 +134,29 @@ The services communicate using distinct patterns optimized for their respective 
 
 ```mermaid
 sequenceDiagram
-  participant Client
-  participant Checkout Workflow
-  participant (checkoutWorkflow)
-  participant Ticket Object
-  participant (ticketObject)
-  participant SeatMap Object
-  participant (seatMapObject)
+  participant p1 as Client
+  participant p2 as Checkout Workflow<br/>(checkoutWorkflow)
+  participant p3 as Ticket Object<br/>(ticketObject)
+  participant p4 as SeatMap Object<br/>(seatMapObject)
 
-  note over Client,(seatMapObject): Workflow-to-Object Communication (Awaited RPC)
-  Client->>Checkout Workflow: "process({ticketId, userId, paymentMethodId})"
-  Checkout Workflow->>Ticket Object: "ctx.objectClient(ticketObject, ticketId).reserve(userId)"
-  note over Ticket Object,(ticketObject): "Serialized execution<br/>for this seatId"
-  Ticket Object-->>Checkout Workflow: "true or TerminalError"
-  Checkout Workflow->>SeatMap Object: "ctx.objectClient(seatMapObject, 'global').set({seatId, status: 'RESERVED'})"
-  SeatMap Object-->>Checkout Workflow: "true"
-  note over Checkout Workflow,(checkoutWorkflow): "Payment processing..."
-  Checkout Workflow->>Ticket Object: "ctx.objectClient(ticketObject, ticketId).confirm()"
-  Ticket Object-->>Checkout Workflow: "true"
-  Checkout Workflow->>SeatMap Object: "ctx.objectClient(seatMapObject, 'global').set({seatId, status: 'SOLD'})"
-  SeatMap Object-->>Checkout Workflow: "true"
-  note over Client,(seatMapObject): Object-to-Object Communication (Fire-and-Forget + Awaited)
-  SeatMap Object->>SeatMap Object: "ctx.objectSendClient(seatMapObject, 'global').resetAll()"
-  note over SeatMap Object,(seatMapObject): "Async invocation<br/>returns immediately"
-  SeatMap Object->>Ticket Object: "ctx.objectClient(ticketObject, seatId).release()"
-  note over Ticket Object,(seatMapObject): "Inside resetAll handler<br/>awaited RPC call"
-  Ticket Object-->>SeatMap Object: "true"
+  note over p1,p4: Workflow-to-Object Communication (Awaited RPC)
+  p1->>p2: "process({ticketId, userId, paymentMethodId})"
+  p2->>p3: "ctx.objectClient(ticketObject, ticketId).reserve(userId)"
+  note over p3: "Serialized execution<br/>for this seatId"
+  p3-->>p2: "true or TerminalError"
+  p2->>p4: "ctx.objectClient(seatMapObject, 'global').set({seatId, status: 'RESERVED'})"
+  p4-->>p2: "true"
+  note over p2: "Payment processing..."
+  p2->>p3: "ctx.objectClient(ticketObject, ticketId).confirm()"
+  p3-->>p2: "true"
+  p2->>p4: "ctx.objectClient(seatMapObject, 'global').set({seatId, status: 'SOLD'})"
+  p4-->>p2: "true"
+  note over p1,p4: Object-to-Object Communication (Fire-and-Forget + Awaited)
+  p4->>p4: "ctx.objectSendClient(seatMapObject, 'global').resetAll()"
+  note over p4: "Async invocation<br/>returns immediately"
+  p4->>p3: "ctx.objectClient(ticketObject, seatId).release()"
+  note over p3,p4: "Inside resetAll handler<br/>awaited RPC call"
+  p3-->>p4: "true"
 ```
 
 ### Communication Patterns Table

@@ -262,33 +262,28 @@ The Ticket Virtual Object relies on Restate's automatic serialization to prevent
 
 ```mermaid
 sequenceDiagram
-  participant Request 1
-  participant user-1
-  participant Request 2
-  participant user-2
-  participant Request 3
-  participant user-3
-  participant Restate Queue
-  participant (key: seat-42)
-  participant reserve() Handler
-  participant Durable State
-  participant seat-42
+  participant p1 as Request 1<br/>user-1
+  participant p2 as Request 2<br/>user-2
+  participant p3 as Request 3<br/>user-3
+  participant p4 as Restate Queue<br/>(key: seat-42)
+  participant p5 as reserve() Handler
+  participant p6 as Durable State<br/>seat-42
 
-  note over Request 1,user-3: All requests arrive concurrently
-  Request 1->>Restate Queue: reserve("seat-42", "user-1")
-  Request 2->>Restate Queue: reserve("seat-42", "user-2")
-  Request 3->>Restate Queue: reserve("seat-42", "user-3")
-  note over Restate Queue,(key: seat-42): Restate serializes by key
-  Restate Queue->>reserve() Handler: Execute Request 1
-  reserve() Handler->>Durable State: Read state: AVAILABLE
-  reserve() Handler->>Durable State: Write state: RESERVED by user-1
-  reserve() Handler-->>Request 1: Return true
-  Restate Queue->>reserve() Handler: Execute Request 2
-  reserve() Handler->>Durable State: Read state: RESERVED by user-1
-  reserve() Handler-->>Request 2: TerminalError: "currently reserved"
-  Restate Queue->>reserve() Handler: Execute Request 3
-  reserve() Handler->>Durable State: Read state: RESERVED by user-1
-  reserve() Handler-->>Request 3: TerminalError: "currently reserved"
+  note over p1,p3: All requests arrive concurrently
+  p1->>p4: reserve("seat-42", "user-1")
+  p2->>p4: reserve("seat-42", "user-2")
+  p3->>p4: reserve("seat-42", "user-3")
+  note over p4: Restate serializes by key
+  p4->>p5: Execute Request 1
+  p5->>p6: Read state: AVAILABLE
+  p5->>p6: Write state: RESERVED by user-1
+  p5-->>p1: Return true
+  p4->>p5: Execute Request 2
+  p5->>p6: Read state: RESERVED by user-1
+  p5-->>p2: TerminalError: "currently reserved"
+  p4->>p5: Execute Request 3
+  p5->>p6: Read state: RESERVED by user-1
+  p5-->>p3: TerminalError: "currently reserved"
 ```
 
 **Key Properties**:

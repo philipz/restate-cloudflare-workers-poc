@@ -213,33 +213,33 @@ The workflow survives Worker crashes, network failures, and payment gateway time
 
 ```mermaid
 sequenceDiagram
-  participant Client
-  participant Restate Server
-  participant Worker (src/index.ts)
-  participant Checkout Workflow
-  participant Ticket Object
-  participant SeatMap Object
-  participant processPayment()
+  participant p1 as Client
+  participant p2 as Restate Server
+  participant p3 as Worker (src/index.ts)
+  participant p4 as Checkout Workflow
+  participant p5 as Ticket Object
+  participant p6 as SeatMap Object
+  participant p7 as processPayment()
 
-  Client->>Restate Server: POST /Checkout/process
-  Restate Server->>Worker (src/index.ts): {ticketId: "seat-1", userId: "user-1", paymentMethodId: "card_success"}
-  Worker (src/index.ts)->>Checkout Workflow: Invoke via createEndpointHandler()
-  Checkout Workflow->>Ticket Object: Route to checkout.process()
-  note over Ticket Object: Serialized access<br/>State: AVAILABLE → RESERVED
-  Ticket Object-->>Checkout Workflow: ctx.objectClient.reserve("user-1")
-  Checkout Workflow->>SeatMap Object: Success
-  SeatMap Object-->>Checkout Workflow: ctx.objectClient.set("seat-1", "RESERVED")
-  Checkout Workflow->>processPayment(): Success
-  note over processPayment(): Exactly-once execution<br/>500ms simulated delay
-  processPayment()-->>Checkout Workflow: ctx.run("process-payment", () => processPayment(...))
-  Checkout Workflow->>Ticket Object: Success
-  note over Ticket Object: State: RESERVED → SOLD
-  Ticket Object-->>Checkout Workflow: ctx.objectClient.confirm()
-  Checkout Workflow->>SeatMap Object: Success
-  SeatMap Object-->>Checkout Workflow: ctx.objectClient.set("seat-1", "SOLD")
-  Checkout Workflow->>Checkout Workflow: Success
-  Checkout Workflow-->>Restate Server: ctx.run("send-email", () => sendEmail(...))
-  Restate Server-->>Client: Return "Booking Confirmed"
+  p1->>p2: POST /Checkout/process<br/>{ticketId: "seat-1", userId: "user-1", paymentMethodId: "card_success"}
+  p2->>p3: Invoke via createEndpointHandler()
+  p3->>p4: Route to checkout.process()
+  p4->>p5: ctx.objectClient.reserve("user-1")
+  note over p5: Serialized access<br/>State: AVAILABLE → RESERVED
+  p5-->>p4: Success
+  p4->>p6: ctx.objectClient.set("seat-1", "RESERVED")
+  p6-->>p4: Success
+  p4->>p7: ctx.run("process-payment", () => processPayment(...))
+  note over p7: Exactly-once execution<br/>500ms simulated delay
+  p7-->>p4: Success
+  p4->>p5: ctx.objectClient.confirm()
+  note over p5: State: RESERVED → SOLD
+  p5-->>p4: Success
+  p4->>p6: ctx.objectClient.set("seat-1", "SOLD")
+  p6-->>p4: Success
+  p4->>p4: ctx.run("send-email", () => sendEmail(...))
+  p4-->>p2: Return "Booking Confirmed"
+  p2-->>p1: 200 OK
 ```
 
 **Figure 3: Successful Booking Request Flow**
