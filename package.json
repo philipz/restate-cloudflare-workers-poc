@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --env=\"\"",
+    "deploy:test": "wrangler deploy --env test",
     "dev": "wrangler dev",
     "start": "wrangler dev"
   },
