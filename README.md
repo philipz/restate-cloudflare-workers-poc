@@ -62,6 +62,13 @@ curl -X POST http://localhost:9070/deployments \
     ```bash
     restate -e nexus-poc deployments register https://nexus-poc.philipz.workers.dev
     ```
+    or
+    ```bash
+    curl -X POST https://201kb7y8wxs1nk6t81wyx88dn2q.env.us.restate.cloud:9070/deployments \
+      -H "Authorization: Bearer $RESTATE_ADMIN_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"uri": "https://nexus-poc.philipz.workers.dev", "force": true}'
+    ```
 
 ## 🧪 測試情境與方法
 
