@@ -79,6 +79,11 @@ export const ticketObject = restate.object({
             return true;
         },
 
+        cleanup: async (ctx: restate.ObjectContext) => {
+            ctx.clear("state");
+            return true;
+        },
+
         get: async (ctx: restate.ObjectContext) => {
             return (await ctx.get<TicketState>("state")) || {
                 status: "AVAILABLE",
