@@ -1,0 +1,19 @@
+# restate-cloudflare-workers-poc catalog（agent-playground 跨 owner 試點）。
+#
+# 三軸（docs/03 §2.2、docs/06 §3）：
+#   business-criticality / risk-profile / complexity
+# 此 repo 為 PoC fork，無實際流量與金流，用途是驗證 Software Factory
+# 能否順利修補相依套件（見 repo description）——採最低風險輪廓，
+# 使工作項落在 on-loop（agent 可自主執行），符合試點目的。
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: restate-cloudflare-workers-poc
+  description: Restate on Cloudflare Workers PoC（TypeScript；相依套件修補試點）
+  annotations:
+    # 三軸評分（0–2 每軸；總分 0 為最低風險 → on-loop）
+    factory.io/business-criticality: tactical
+    factory.io/risk-profile: low
+    factory.io/complexity: low
+    # 技術棧 annotation（docs/09 2.1）
+    factory.io/stack: typescript
