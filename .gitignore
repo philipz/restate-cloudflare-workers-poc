@@ -141,3 +141,6 @@ vite.config.ts.timestamp-*
 .vite/
 
 .DS_Store
+
+# Local npm cache used by CI/factory runs (keep node_modules installable without touching ~)
+.npm-cache/

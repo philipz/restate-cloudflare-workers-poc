@@ -6,7 +6,9 @@
     "deploy": "wrangler deploy --env=\"\"",
     "deploy:test": "wrangler deploy --env test",
     "dev": "wrangler dev",
-    "start": "wrangler dev"
+    "start": "wrangler dev",
+    "build:tests": "tsc -p test/tsconfig.json && node test/write-dist-package-type.mjs",
+    "test": "npm run build:tests && node --import ./test/loader/register.mjs --test \"dist/test/**/*.test.js\""
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240405.0",
