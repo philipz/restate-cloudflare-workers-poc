@@ -28,14 +28,14 @@ export const checkoutWorkflow = restate.service({
                 });
             } catch (error) {
                 // Step 3: Compensation
-                await ticket.release();
+                await ticket.release(userId);
                 // Revert SeatMap (View)
                 await seatMap.set({ seatId: ticketId, status: "AVAILABLE" });
                 throw new restate.TerminalError(`Payment failed: ${(error as Error).message}`);
             }
 
             // Step 4: Confirm Ticket
-            await ticket.confirm();
+            await ticket.confirm(userId);
             // Update SeatMap (View)
             await seatMap.set({ seatId: ticketId, status: "SOLD" });
 

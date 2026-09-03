@@ -27,6 +27,14 @@ export const ticketObject = restate.object({
                 throw new restate.TerminalError("Ticket already sold");
             }
 
+            const now = await ctx.run("now", () => Date.now());
+            // 檢查過期：若已 RESERVED 但逾期，視為過期自動釋放為 AVAILABLE
+            if (state.status === "RESERVED" && state.reservedUntil && now > state.reservedUntil) {
+                state.status = "AVAILABLE";
+                state.reservedBy = null;
+                state.reservedUntil = null;
+            }
+
             if (state.status === "RESERVED" && state.reservedBy !== userId) {
                 throw new restate.TerminalError("Ticket is currently reserved");
             }
@@ -35,7 +43,6 @@ export const ticketObject = restate.object({
                 state.status = "RESERVED";
                 state.reservedBy = userId;
                 // Reserve for 15 minutes
-                const now = await ctx.run("now", () => Date.now());
                 state.reservedUntil = now + 15 * 60 * 1000;
                 ctx.set("state", state);
             }
@@ -43,7 +50,7 @@ export const ticketObject = restate.object({
             return true;
         },
 
-        confirm: async (ctx: restate.ObjectContext) => {
+        confirm: async (ctx: restate.ObjectContext, userId: string) => {
             const state = (await ctx.get<TicketState>("state")) || {
                 status: "AVAILABLE",
                 reservedBy: null,
@@ -51,26 +58,41 @@ export const ticketObject = restate.object({
             };
 
             if (state.status === "SOLD") {
-                return true;
+                // 冪等重試：僅當持有者身分相同時回傳成功，否則拋出 TerminalError
+                if (state.reservedBy === userId) {
+                    return true;
+                }
+                throw new restate.TerminalError(`Ticket already sold to another user: ${state.reservedBy}`);
             }
 
-            // Allow confirming if RESERVED or AVAILABLE (in case of race with reset)
-            if (state.status !== "RESERVED" && state.status !== "AVAILABLE") {
-                throw new restate.TerminalError(`Ticket is in status ${state.status}, cannot confirm`);
+            // 認領守衛：必須為 RESERVED 且保留者與呼叫者一致，不再容忍 AVAILABLE 直接確認
+            if (state.status !== "RESERVED" || state.reservedBy !== userId) {
+                throw new restate.TerminalError(`Ticket is not reserved by user ${userId} (status: ${state.status}, reservedBy: ${state.reservedBy})`);
             }
 
             state.status = "SOLD";
+            state.reservedBy = userId;
             state.reservedUntil = null;
             ctx.set("state", state);
             return true;
         },
 
-        release: async (ctx: restate.ObjectContext) => {
+        release: async (ctx: restate.ObjectContext, userId?: string) => {
             const state = (await ctx.get<TicketState>("state")) || {
                 status: "AVAILABLE",
                 reservedBy: null,
                 reservedUntil: null,
             };
+
+            // 若由特定使用者發起釋放（補償路徑）：僅允許保留者本人釋放非 SOLD 票券
+            if (userId !== undefined) {
+                if (state.status === "SOLD") {
+                    return false;
+                }
+                if (state.reservedBy && state.reservedBy !== userId) {
+                    return false;
+                }
+            }
 
             state.status = "AVAILABLE";
             state.reservedBy = null;

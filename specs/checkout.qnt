@@ -67,9 +67,10 @@ module checkout {
     epoch' = epoch, purchasedAt' = purchasedAt,
   }
 
-  // checkout.ts:38-40 → game.ts:46-66（無 caller 身分；Sold 冪等 true；見 §2.6.2）
+  // checkout.ts:38-40 → game.ts:46-66；修復：+認領守衛，Sold 冪等分支亦須 reservedBy==u
   action confirm(u: str): bool = all {
     userPhase.get(u) == Paid,
+    ticketBuyer == u,                              // 修復 F1/F3：confirm 認領呼叫者
     userPhase' = userPhase.put(u, Done),
     purchasedAt' = purchasedAt.put(u, epoch),
     viewStatus' = Sold,                         // checkout.ts:40
@@ -80,8 +81,9 @@ module checkout {
     },
   }
 
-  // game.ts:112-125 → game_manager.ts:11-17（fire-and-forget、unconditional release）
+  // game.ts:112-125 → game_manager.ts:11-17；修復：+quiescence 守衛（串行化重置）
   action gameOver: bool = all {
+    Users.forall(v => userPhase.get(v) != Paying and userPhase.get(v) != Paid),  // 修復 F2：有 in-flight saga 不重置
     ticketStatus' = Available, ticketBuyer' = "", viewStatus' = Available,
     epoch' = epoch + 1, userPhase' = userPhase,
     transientRetries' = transientRetries, purchasedAt' = purchasedAt,

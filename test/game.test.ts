@@ -39,26 +39,39 @@ describe("Ticket.reserve()", () => {
   });
 
   it("同一使用者重複 reserve：回傳 true 但不更新保留期（既有的冪等行為）", async (t) => {
+    const future = Date.now() + 15 * 60 * 1000;
     const reserved: TicketState = {
       status: "RESERVED",
       reservedBy: "alice",
-      reservedUntil: 1234,
+      reservedUntil: future,
     };
     const { mock, ctx } = withState({ state: reserved });
     const result = await handlers().reserve(ctx, "alice");
 
     t.assert.equal(result, true);
     t.assert.equal(mock.sets.length, 0); // 未再寫入
-    t.assert.equal((mock.data.state as TicketState).reservedUntil, 1234); // 未延長
+    t.assert.equal((mock.data.state as TicketState).reservedUntil, future); // 未延長
   });
 
-  it("他人已 RESERVED：丟 TerminalError('Ticket is currently reserved')", async (t) => {
+  it("他人已 RESERVED（未過期）：丟 TerminalError('Ticket is currently reserved')", async (t) => {
+    const future = Date.now() + 15 * 60 * 1000;
     const { ctx } = withState({
-      state: { status: "RESERVED", reservedBy: "alice", reservedUntil: 1234 },
+      state: { status: "RESERVED", reservedBy: "alice", reservedUntil: future },
     });
     await t.assert.rejects(() => handlers().reserve(ctx, "bob"), (err: Error) => {
       return err instanceof TerminalError && err.message === "Ticket is currently reserved";
     });
+  });
+
+  it("他人 RESERVED 但已逾期（TTL 過期）：允許新使用者預約並覆寫持有者", async (t) => {
+    const { mock, ctx } = withState({
+      state: { status: "RESERVED", reservedBy: "alice", reservedUntil: 1000 }, // 已過期
+    });
+    const result = await handlers().reserve(ctx, "bob");
+    t.assert.equal(result, true);
+    const state = mock.data.state as TicketState;
+    t.assert.equal(state.status, "RESERVED");
+    t.assert.equal(state.reservedBy, "bob");
   });
 
   it("已 SOLD：丟 TerminalError('Ticket already sold')", async (t) => {
@@ -72,48 +85,71 @@ describe("Ticket.reserve()", () => {
 });
 
 describe("Ticket.confirm()", () => {
-  it("RESERVED → SOLD，清空 reservedUntil", async (t) => {
+  it("RESERVED → SOLD，清空 reservedUntil，維持 reservedBy", async (t) => {
     const { mock, ctx } = withState({
       state: { status: "RESERVED", reservedBy: "alice", reservedUntil: 999 },
     });
-    const result = await handlers().confirm(ctx);
+    const result = await handlers().confirm(ctx, "alice");
     const state = mock.data.state as TicketState;
     t.assert.equal(result, true);
     t.assert.equal(state.status, "SOLD");
+    t.assert.equal(state.reservedBy, "alice");
     t.assert.equal(state.reservedUntil, null);
   });
 
-  it("冪等：已 SOLD 再 confirm 直接回 true，不再寫入", async (t) => {
+  it("冪等：已 SOLD 且為同一人再 confirm 直接回 true，不再寫入", async (t) => {
     const { mock, ctx } = withState({
       state: { status: "SOLD", reservedBy: "alice", reservedUntil: null },
     });
-    t.assert.equal(await handlers().confirm(ctx), true);
+    t.assert.equal(await handlers().confirm(ctx, "alice"), true);
     t.assert.equal(mock.sets.length, 0);
   });
 
-  it("容忍 AVAILABLE（與 reset 賽兵的放寬路徑）→ 直接 SOLD", async (t) => {
-    const { mock, ctx } = withState();
-    t.assert.equal(await handlers().confirm(ctx), true);
-    t.assert.equal((mock.data.state as TicketState).status, "SOLD");
-  });
-
-  it("邊界（既有行為）：reservedBy 為 null 的 RESERVED 狀態可被任何人 confirm", async (t) => {
-    // 現行實作 confirm 不檢查 ctx 身份／保留者——POC 假設僅 checkout 呼叫。
+  it("防護：他人已買（SOLD）再 confirm → 拋出 TerminalError", async (t) => {
     const { mock, ctx } = withState({
-      state: { status: "RESERVED", reservedBy: null, reservedUntil: 123 },
+      state: { status: "SOLD", reservedBy: "alice", reservedUntil: null },
     });
-    t.assert.equal(await handlers().confirm(ctx), true);
-    t.assert.equal((mock.data.state as TicketState).status, "SOLD");
-  });
-
-  it("防護：非法狀態值（如髒資料）→ TerminalError('Ticket is in status …, cannot confirm')", async (t) => {
-    const { mock, ctx } = withState({
-      state: { status: "HELD" as TicketState["status"], reservedBy: null, reservedUntil: null },
-    });
-    await t.assert.rejects(() => handlers().confirm(ctx), (err: Error) => {
+    await t.assert.rejects(() => handlers().confirm(ctx, "bob"), (err: Error) => {
       return (
         err instanceof TerminalError &&
-        err.message === "Ticket is in status HELD, cannot confirm"
+        err.message.includes("Ticket already sold to another user: alice")
+      );
+    });
+    t.assert.equal(mock.sets.length, 0);
+  });
+
+  it("拒絕 AVAILABLE：未經預訂不得直接 confirm → 拋出 TerminalError", async (t) => {
+    const { mock, ctx } = withState();
+    await t.assert.rejects(() => handlers().confirm(ctx, "alice"), (err: Error) => {
+      return (
+        err instanceof TerminalError &&
+        err.message.includes("Ticket is not reserved by user alice")
+      );
+    });
+    t.assert.equal(mock.sets.length, 0);
+  });
+
+  it("防護：非保留者本人 confirm → 拋出 TerminalError", async (t) => {
+    const { mock, ctx } = withState({
+      state: { status: "RESERVED", reservedBy: "alice", reservedUntil: 123 },
+    });
+    await t.assert.rejects(() => handlers().confirm(ctx, "bob"), (err: Error) => {
+      return (
+        err instanceof TerminalError &&
+        err.message.includes("Ticket is not reserved by user bob")
+      );
+    });
+    t.assert.equal(mock.sets.length, 0);
+  });
+
+  it("防護：非法狀態值（如髒資料）→ TerminalError", async (t) => {
+    const { mock, ctx } = withState({
+      state: { status: "HELD" as TicketState["status"], reservedBy: "alice", reservedUntil: null },
+    });
+    await t.assert.rejects(() => handlers().confirm(ctx, "alice"), (err: Error) => {
+      return (
+        err instanceof TerminalError &&
+        err.message.includes("Ticket is not reserved by user alice")
       );
     });
     t.assert.equal(mock.sets.length, 0); // 拋錯前不寫入
@@ -121,7 +157,22 @@ describe("Ticket.confirm()", () => {
 });
 
 describe("Ticket.release() / cleanup() / get()", () => {
-  it("release：任何狀態回到全空 AVAILABLE", async (t) => {
+  it("release：保留者本人釋放 → 回到全空 AVAILABLE", async (t) => {
+    const { mock, ctx } = withState({
+      state: { status: "RESERVED", reservedBy: "alice", reservedUntil: 42 },
+    });
+    t.assert.equal(await handlers().release(ctx, "alice"), true);
+    t.assert.deepStrictEqual(mock.data.state, DEFAULT_STATE);
+  });
+
+  it("release：非保留者嘗試釋放 → 忽略（回傳 false 不寫入）", async (t) => {
+    const state = { status: "RESERVED", reservedBy: "alice", reservedUntil: 42 };
+    const { mock, ctx } = withState({ state });
+    t.assert.equal(await handlers().release(ctx, "bob"), false);
+    t.assert.equal(mock.sets.length, 0);
+  });
+
+  it("release：無參數時系統重置回到全空 AVAILABLE", async (t) => {
     const { mock, ctx } = withState({
       state: { status: "SOLD", reservedBy: "alice", reservedUntil: 42 },
     });

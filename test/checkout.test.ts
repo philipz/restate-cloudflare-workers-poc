@@ -34,6 +34,7 @@ describe("Checkout.process() — 成功路径", () => {
       args: ["alice"],
     });
     t.assert.deepStrictEqual(mock.objectCalls[1].args, [{ seatId: "seat-7", status: "RESERVED" }]);
+    t.assert.deepStrictEqual(mock.objectCalls[2].args, ["alice"]);
     t.assert.deepStrictEqual(mock.objectCalls[3].args, [{ seatId: "seat-7", status: "SOLD" }]);
     t.assert.deepStrictEqual(mock.runs, ["process-payment", "send-email"]);
     // 未指定 paymentMethodId 時套用預設 "card_success"（payment 閉包實際執行成功）
@@ -68,7 +69,7 @@ describe("Checkout.process() — 補償路徑", () => {
       mock.objectCalls.map((c) => `${c.service}.${c.handler}`),
       ["Ticket.reserve", "SeatMap.set", "Ticket.release", "SeatMap.set"]
     );
-    t.assert.deepStrictEqual(mock.objectCalls[2].args, []);
+    t.assert.deepStrictEqual(mock.objectCalls[2].args, ["bob"]);
     t.assert.deepStrictEqual(mock.objectCalls[3].args, [{ seatId: "seat-3", status: "AVAILABLE" }]);
     t.assert.deepStrictEqual(mock.runs, ["process-payment"]); // 未送達 send-email
     t.assert.equal(callOf(mock.objectCalls, "confirm").length, 0);
