@@ -1,0 +1,30 @@
+name: Dependency Review
+
+# Blocks pull requests that introduce dependencies with known vulnerabilities
+# or disallowed licences. Free for public repositories.
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Needed to leave the summary comment on the pull request.
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v5.0.0
+        with:
+          # Fail the check on newly introduced moderate-or-worse advisories.
+          fail-on-severity: moderate
+          comment-summary-in-pr: always

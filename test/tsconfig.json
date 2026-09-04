@@ -1,0 +1,16 @@
+{
+  "//": "測試專用編譯設定：把 src/ 與 test/ 編成 Node 可執行的 ESM 輸出到 dist/（.gitignore 已忽略）。不動根 tsconfig.json（noEmit，供 wrangler 型別檢查）。",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "noEmitOnError": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "rootDir": "..",
+    "outDir": "../dist",
+    "sourceMap": false,
+    "declaration": false,
+    "types": ["@cloudflare/workers-types/2023-07-01"]
+  },
+  "include": ["../src/**/*.ts", "./**/*.ts"]
+}
