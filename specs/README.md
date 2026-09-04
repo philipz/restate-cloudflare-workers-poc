@@ -11,7 +11,7 @@
 
 | 檔案 | 內容 | 來源 |
 |---|---|---|
-| `checkout.qnt` | **現行正式規格（修復版）**：忠實反映修復後之程式碼邏輯（`confirm` 認領守衛 `ticketBuyer == u`、`gameOver` quiescence 靜止期守衛） | 附錄 A.1＋A.2 |
+| `checkout.qnt` | **現行正式規格（修復版）**：忠實反映修復後之程式碼邏輯（`confirm` 認領守衛 `ticketBuyer == u`、`gameOver` quiescence 靜止期守衛；Issue #21 起 `reserve` 對已 `Reserved` 一律拒絕含同一使用者） | 附錄 A.1＋A.2 |
 | `checkoutBuggy.qnt` | **歷史缺陷對照模型（BUGGY 基準）**：忠實保留修復前程式碼缺陷語意（RC1 `release` 無條件覆蓋、RC2 `confirm` 無 caller 身分、RC3 fire-and-forget 重置） | 附錄 A.1 逐字 |
 | `README.md` | 本檔：執行入口與實測記錄 | — |
 
