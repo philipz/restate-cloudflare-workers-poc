@@ -35,6 +35,8 @@ export interface WorldState {
   runs: string[];
   /** 可覆寫的時鐘（毫秒）；未設時回 Date.now()。供 TTL 情境（S4）注入。 */
   now: () => number;
+  /** 每 key 的 Object 呼叫序列化鎖（模擬 Restate per-key exclusive）。僅 Object client 使用。 */
+  locks: Map<string, Promise<unknown>>;
 }
 
 function slotKey(service: string, key: string): string {
@@ -56,20 +58,42 @@ export function createWorld(initialNow?: number): WorldState {
     slots: {},
     runs: [],
     now: initialNow === undefined ? () => Date.now() : () => initialNow,
+    locks: new Map(),
   };
   return world;
 }
 
-/** 依 handler 名稱產生一個會「實際執行真實 handler」的 client stub。 */
+/** 依 handler 名稱產生一個會「實際執行真實 handler」的 client stub。
+ *  serialize 為 true 時（Object client），以 per-key 序列化鎖模擬 Restate 的
+ *  per-key exclusive：同 (service, key) 的 handler 呼叫逐一排隊執行，
+ *  使後到的 reserve 能讀到前一個已提交的 RESERVED 狀態（Issue #21 併發雙重扣款防護）。 */
 function realHandlerFn(
   world: WorldState,
   service: string,
   key: string,
-  handler: HandlerFn
+  handler: HandlerFn,
+  serialize: boolean
 ) {
   return async (...args: unknown[]) => {
-    const ctx = makeRoutedCtx(world, service, key);
-    return await handler(ctx, ...args);
+    const run = async () => {
+      const ctx = makeRoutedCtx(world, service, key);
+      return await handler(ctx, ...args);
+    };
+    if (!serialize) {
+      return await run();
+    }
+    const k = slotKey(service, key);
+    const tail = world.locks.get(k) ?? Promise.resolve();
+    // 接上排隊鏈：本呼叫在前一呼叫完成後才執行；本呼叫自身的 gate 成為新的 tail。
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    world.locks.set(k, tail.then(() => gate));
+    await tail;
+    try {
+      return await run();
+    } finally {
+      release();
+    }
   };
 }
 
@@ -78,7 +102,8 @@ function realClient(
   world: WorldState,
   service: string,
   key: string,
-  handlers: Record<string, HandlerFn>
+  handlers: Record<string, HandlerFn>,
+  serialize: boolean
 ) {
   return new Proxy({} as Record<string, (...args: unknown[]) => Promise<unknown>>, {
     get(_target, prop) {
@@ -87,7 +112,7 @@ function realClient(
       if (!handler) {
         throw new Error(`unknown handler "${name}" on ${service} (key=${key})`);
       }
-      return realHandlerFn(world, service, key, handler);
+      return realHandlerFn(world, service, key, handler, serialize);
     },
   });
 }
@@ -119,17 +144,17 @@ function makeRoutedCtx(world: WorldState, service: string, key: string): restate
     },
     objectClient: (def: { name: string }, k: string) => {
       const handlers = handlersOf<Record<string, HandlerFn>>(def, "object");
-      return realClient(world, def.name, k, handlers);
+      return realClient(world, def.name, k, handlers, true); // Object：per-key exclusive
     },
     objectSendClient: (def: { name: string }, k: string) => {
       const handlers = handlersOf<Record<string, HandlerFn>>(def, "object");
       // fire-and-forget：本 harness 以「同步執行」逼近（單執行緒依序交錯），
       // 以便 S6 的全員釋放能被觀察到。真正的 async 背景佇列不在此模擬。
-      return realClient(world, def.name, k, handlers);
+      return realClient(world, def.name, k, handlers, true);
     },
     serviceSendClient: (def: { name: string }) => {
       const handlers = handlersOf<Record<string, HandlerFn>>(def, "service");
-      return realClient(world, def.name, "", handlers);
+      return realClient(world, def.name, "", handlers, false); // Service：不序列化
     },
   };
   return ctx as unknown as restate.Context;

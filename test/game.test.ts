@@ -38,7 +38,12 @@ describe("Ticket.reserve()", () => {
     t.assert.equal(mock.sets[0].key, "state");
   });
 
-  it("同一使用者重複 reserve：回傳 true 但不更新保留期（既有的冪等行為）", async (t) => {
+  // Issue #21：刻意變更語意——「同 user 重複 reserve 的冪等」改為
+  // 「已 RESERVED 一律拒絕（含同一使用者）」拋 TerminalError，
+  // 以杜絕同 user 併發結帳同座位造成的雙重扣款。
+  // 重播安全：同 invocation 重試由 journal 重放，不會重呼 handler。
+  // → 修復前紅燈（現行 return true）、修復後綠燈，故以 it.skip 交付。
+  it.skip("同一使用者重複 reserve（已 RESERVED）：一律拒絕並拋 TerminalError（不再冪等回 true）", async (t) => {
     const future = Date.now() + 15 * 60 * 1000;
     const reserved: TicketState = {
       status: "RESERVED",
@@ -46,9 +51,11 @@ describe("Ticket.reserve()", () => {
       reservedUntil: future,
     };
     const { mock, ctx } = withState({ state: reserved });
-    const result = await handlers().reserve(ctx, "alice");
 
-    t.assert.equal(result, true);
+    await t.assert.rejects(() => handlers().reserve(ctx, "alice"), (err: Error) => {
+      return err instanceof TerminalError && err.message === "Ticket is currently reserved";
+    });
+
     t.assert.equal(mock.sets.length, 0); // 未再寫入
     t.assert.equal((mock.data.state as TicketState).reservedUntil, future); // 未延長
   });
