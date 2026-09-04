@@ -87,12 +87,25 @@ curl -X POST http://localhost:9070/deployments \
     - 預期: 第二次請求失敗，顯示 "Seat already sold"。
 4.  **並發控制 (Concurrency)**
     - 輸入: 多個請求同時搶同一座位。
-    - 預期: 只有一個請求成功，其餘失敗。
+    - 預期: 恰好一個請求回傳 "Booking Confirmed"，其餘回傳 "currently reserved" 或 "already sold" 的正確拒絕（`test-all.sh` 測試 5 驗證此失敗型別分布）。
 
 ### 如何執行測試
 
+#### 0. 自動化單元/回歸測試 (`npm test`)
+不需要外部服務（使用 fake Restate SDK loader），可在任何環境執行：
+
+```bash
+npm install          # 安裝相依（wrangler 與 workers-types 的 optional peer 衝突時可加 --legacy-peer-deps）
+npm test             # 全數測試（目前為 48 tests）
+npm run test:race    # 並發反例（race counterexample）專門測試
+```
+
 #### 1. 本地環境測試 (`test-all.sh`)
 針對本地運行的 Restate Server (`localhost:8080`) 執行完整測試套件。
+
+**重跑前提**:
+- 本地 Restate Server 已啟動，且 Worker 服務已註冊至該实例（見上方「註冊服務」）。
+- 腳本每次執行使用唯一 run 前綴（`RUN_ID` 環境變數可覆蓋）作為座位 id，並在開頭前置呼叫 `SeatMap/global/reset` 與 `Ticket/{id}/cleanup` 清理狀態，因此對持久化的 Restate 实例**可重複執行**（同一实例連跑兩次皆應全綠）。
 
 ```bash
 ./test-all.sh
@@ -101,8 +114,8 @@ curl -X POST http://localhost:9070/deployments \
 #### 2. 雲端環境測試 (`test-cloud.sh`)
 針對 Restate Cloud 環境執行驗證。
 
-**設定認證**:
-在專案根目錄建立 `.env` 檔案，填入您的 Restate Cloud Token：
+**設定認證**（必要）:
+在專案根目錄建立 `.env` 檔案，填入您的 Restate Cloud Token。未設定 `RESTATE_AUTH_TOKEN` 時腳本會**提前以非 0 結束碼退出**：
 ```env
 RESTATE_AUTH_TOKEN=your_token_here
 ```
@@ -111,6 +124,8 @@ RESTATE_AUTH_TOKEN=your_token_here
 ```bash
 ./test-cloud.sh
 ```
+
+腳本結尾會印出 PASSED/FAILED 摘要；**任一測試失敗即以 exit 1 結束**，可被自動化直接依賴結束碼判斷。
 
 #### 3. 壓力測試 (Load Testing with K6)
 模擬大量用戶搶票的高並發情境。
