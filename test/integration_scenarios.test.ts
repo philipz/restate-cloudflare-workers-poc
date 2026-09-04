@@ -22,21 +22,43 @@ import { describe, it } from "node:test";
 import { createIntegration, TerminalError } from "./helpers/integration";
 import type { TicketState } from "../src/game";
 
-describe("整合式情境 S1——同 user 重複下單", () => {
-  it("同一 user 對同一座位發起兩次結帳：第二次不得再回 Booking Confirmed", async (t) => {
+describe("整合式情境 S1——同 user 併發下單同座位（雙重扣款防護）", () => {
+  // Issue #21：S1 由循序改為併發，以重現「同 user 併發結帳同座位」的雙重扣款缺陷。
+  // 修復（src/game.ts reserve 對已 RESERVED 一律拒絕）前，兩次 checkout.process 會各自
+  // reserve 成功（同 user 冪等 return true）→ 各付一次款、各發一次信 → 兩次 Booking Confirmed。
+  // 修復後僅一次成功，另一方 reserve 拋 TerminalError，走補償路徑（不做付款/發信）。
+  // → 修復前紅燈（2 次付款）、修復後綠燈（1 次付款），故以 it.skip 交付（斷言完整保留）。
+  it("同一 user 併發兩次結帳同座位：僅一次 Booking Confirmed，付款/發信各只執行 1 次", async (t) => {
     const itg = createIntegration();
     const checkout = itg.checkout;
+    const req = { ticketId: "seat-1", userId: "alice", paymentMethodId: "card_success" };
 
-    const first = await checkout.process({ ticketId: "seat-1", userId: "alice", paymentMethodId: "card_success" });
-    t.assert.equal(first, "Booking Confirmed");
+    // 併發（Promise.all）同 user 同座位，各自獨立 invocation
+    const results = await Promise.allSettled([
+      checkout.process({ ...req }),
+      checkout.process({ ...req }),
+    ]);
 
-    // 第二次：座位已 SOLD，對同一 user 再下單應失敗（不得雙重成交）
-    await t.assert.rejects(
-      async () => await checkout.process({ ticketId: "seat-1", userId: "alice", paymentMethodId: "card_success" }),
-      (err: Error) => err instanceof TerminalError
+    // ① 只有一個 Booking Confirmed（另一方失敗，不得雙重成交）
+    const confirmed = results.filter((r) => r.status === "fulfilled" && r.value === "Booking Confirmed");
+    t.assert.equal(confirmed.length, 1, "只能有一筆 Booking Confirmed");
+
+    // 另一筆必為失敗（rejected）且為 TerminalError
+    const rejected = results.filter((r) => r.status === "rejected");
+    t.assert.equal(rejected.length, 1, "另一筆須失敗");
+    t.assert.equal(
+      rejected[0].reason instanceof TerminalError,
+      true,
+      "失敗方須為 TerminalError（reserve 對已 RESERVED 拒絕）"
     );
 
-    // 最終真值：票仍只屬於 alice，狀態 SOLD，未重複扣款
+    // ② process-payment 只執行 1 次、③ send-email 只執行 1 次（不得雙重扣款/重複發信）
+    const payCount = itg.world.runs.filter((r) => r === "Checkout.process-payment").length;
+    const mailCount = itg.world.runs.filter((r) => r === "Checkout.send-email").length;
+    t.assert.equal(payCount, 1, "process-payment 只應執行 1 次");
+    t.assert.equal(mailCount, 1, "send-email 只應執行 1 次");
+
+    // 最終真值：票仍只屬於 alice，狀態 SOLD
     const state = itg.stateOf("Ticket", "seat-1").data.state as TicketState;
     t.assert.equal(state.status, "SOLD");
     t.assert.equal(state.reservedBy, "alice");
