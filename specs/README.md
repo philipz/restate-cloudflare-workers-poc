@@ -11,8 +11,8 @@
 
 | 檔案 | 內容 | 來源 |
 |---|---|---|
-| `checkout.qnt` | **BUGGY 模型**：忠實保留現行程式碼缺陷語意（RC1 `release` 無條件覆蓋、RC2 `confirm` 無 caller 身分、RC3 fire-and-forget 重置） | 附錄 A.1 逐字 |
-| `checkoutFixed.qnt` | **修復方向模型**：與 BUGGY 僅兩處守衛差異——`confirm` +認領守衛（`ticketBuyer == u`）、`gameOver` +quiescence 守衛（無 Paying/Paid in-flight 才重置） | 附錄 A.1＋A.2 |
+| `checkout.qnt` | **現行正式規格（修復版）**：忠實反映修復後之程式碼邏輯（`confirm` 認領守衛 `ticketBuyer == u`、`gameOver` quiescence 靜止期守衛） | 附錄 A.1＋A.2 |
+| `checkoutBuggy.qnt` | **歷史缺陷對照模型（BUGGY 基準）**：忠實保留修復前程式碼缺陷語意（RC1 `release` 無條件覆蓋、RC2 `confirm` 無 caller 身分、RC3 fire-and-forget 重置） | 附錄 A.1 逐字 |
 | `README.md` | 本檔：執行入口與實測記錄 | — |
 
 模型範圍：**7 個狀態變數**（ticketStatus、ticketBuyer、viewStatus、userPhase、transientRetries、epoch、purchasedAt）、
@@ -20,12 +20,10 @@
 **3 條不變量**：P1 `inv_no_double_sale`（同回合 ≤1 個 Done）、P2 `inv_paid_implies_owner`（成交者仍持有票）、
 P3 `inv_view_consistent`（視圖 AVAILABLE ⇒ 真值非 SOLD）。
 
-## 語意約定：BUGGY「紅燈」＝預期結果（非測試失敗）
+## 語意約定
 
-- `checkout.qnt` 是對**現行有缺陷實作**的忠實模型：quint 找到反例（exit 1／`Invariant violated`）
-  **正是本交付的驗證目標**——證明模型能重現 37 個綠燈單元測試放過的競態。
-- `checkoutFixed.qnt` 為修復方向：固定 seed 下**不得**出現反例（exit 0／`No violation found`）。
-- 實作修復屬 N1/N2 工作項（本 Issue 明確排除）；屆時「修復版模型與實作行為一致」的再錨定以本目錄為準。
+- `checkout.qnt` 為**現行程式碼之正式規格**：固定 seed 下**不得**出現反例（exit 0／`No violation found`），為 CI PR 閘門驗證對象。
+- `checkoutBuggy.qnt` 是對**修復前歷史實作**的缺陷對照模型：quint 找到反例（exit 1／`Invariant violated`）為設計要求——證明模型能重現 37 個綠燈單元測試放過的競態。
 
 ## 執行入口（需網路＋可寫 `$HOME`，首次執行下載 rust evaluator）
 
@@ -35,19 +33,19 @@ cd specs
 
 # 1) 型別檢查（兩者皆應 exit 0）
 $Q typecheck checkout.qnt
-$Q typecheck checkoutFixed.qnt
+$Q typecheck checkoutBuggy.qnt
 
-# 2) BUGGY：P1/P2 必須找到反例（exit 1＝紅燈＝通過）
-$Q run checkout.qnt --main checkout --invariant=inv_no_double_sale     --max-steps=25 --seed=0x2a
-$Q run checkout.qnt --main checkout --invariant=inv_paid_implies_owner --max-steps=25 --seed=0x2a
-$Q run checkout.qnt --main checkout --invariant=inv_no_double_sale     --max-steps=25 --seed=0x77 --max-samples=20000
-
-# 3) Fixed：三條不變量 × 4 seeds 均應無反例（exit 0）
+# 2) 現行正式規格（checkout.qnt）：三條不變量 × 4 seeds 均應無反例（exit 0）
 for s in 0x1 0x2 0x3 0x4; do
   for i in inv_no_double_sale inv_paid_implies_owner inv_view_consistent; do
-    $Q run checkoutFixed.qnt --main checkoutFixed --invariant=$i --max-steps=25 --seed=$s --max-samples=1000
+    $Q run checkout.qnt --main checkout --invariant=$i --max-steps=25 --seed=$s --max-samples=1000
   done
 done
+
+# 3) 歷史缺陷對照（checkoutBuggy.qnt）：P1/P2 必須找到反例（exit 1＝紅燈＝重現缺陷）
+$Q run checkoutBuggy.qnt --main checkoutBuggy --invariant=inv_no_double_sale     --max-steps=25 --seed=0x2a
+$Q run checkoutBuggy.qnt --main checkoutBuggy --invariant=inv_paid_implies_owner --max-steps=25 --seed=0x2a
+$Q run checkoutBuggy.qnt --main checkoutBuggy --invariant=inv_no_double_sale     --max-steps=25 --seed=0x77 --max-samples=20000
 ```
 
 注意（quint 0.32.0 實測）：`--seed` 給定時 `--max-samples` 預設為 **1**（單軌確定性重現）；
@@ -57,13 +55,13 @@ done
 
 | 命令（縮寫） | 宣稱（報告 §2.4／附錄 B） | 實測 |
 |---|---|---|
-| typecheck checkout／checkoutFixed | 0.32.0 通過 | ✅ exit 0 ×2 |
+| typecheck checkout／checkoutBuggy | 0.32.0 通過 | ✅ exit 0 ×2 |
+| Canonical P1/P2 @0x1–0x4（max-samples=1000） | 無反例 | ✅ 8/8 `[ok] No violation found`（~2300 traces/s） |
+| Canonical P3 @0x1–0x4 | 無反例 | ✅ 4/4 `[ok] No violation found` |
 | BUGGY P1 @0x2a | violation | ✅ `Invariant violated`，11 步反例（末態 `epoch=4`，`userPhase: A→Done, B→Done`，`purchasedAt: A→4, B→4`——同回合雙成交） |
 | BUGGY P2 @0x2a | violation | ✅ `Invariant violated`（末態 `ticketBuyer:"B"` 而 `userPhase: A→Done`——已付款者不持有票） |
 | BUGGY P3 @0x2a | 不可違反（§2.6.1） | ✅ 無反例（與宣稱一致：本抽象層 `set` 與真值同步） |
 | BUGGY P1 @0x77 | violation | ⚠️ 單軌（預設 max-samples=1）**未**命中；`--max-samples=20000` 則 ✅ violation（命中軌道 0x8d7）。差異如實記錄：0x77 非單軌確定性反例 |
-| Fixed P1/P2 @0x1–0x4（max-samples=1000） | 無反例 | ✅ 8/8 `[ok] No violation found`（~2300 traces/s） |
-| Fixed P3 @0x1–0x4 | 無反例 | ✅ 4/4 `[ok] No violation found` |
 
 ### BUGGY 反例末態（seed 0x2a，P1，對應報告 §2.4 S11）
 
@@ -78,8 +76,8 @@ A 的保留被 gameOver 無條件釋放（RC1/RC3）、B 成交後 A 的 confirm
 ## 未納入 DoD：Apalache 窮盡驗證（記錄備查，需 Java 17+）
 
 ```bash
-$Q verify checkout.qnt      --main checkout      --invariant=inv_no_double_sale --max-steps=10        # 窮盡反例
-$Q verify checkoutFixed.qnt --main checkoutFixed --invariant=inv_no_double_sale --max-steps=8         # no violation（約 5.2 分鐘）
+$Q verify checkoutBuggy.qnt --main checkoutBuggy --invariant=inv_no_double_sale --max-steps=10        # 窮盡反例
+$Q verify checkout.qnt      --main checkout      --invariant=inv_no_double_sale --max-steps=8         # no violation（約 5.2 分鐘）
 ```
 
 本沙箱已具備 Java（`/usr/bin/java`），但依 Issue #14 之刻意設計，DoD 以固定 seed 的 `quint run` 為準；

@@ -1,8 +1,8 @@
-// checkout.qnt — Checkout×Ticket×SeatMap×GameManager 併發模型（BUGGY 語意）
-// 來源：docs/research/11-quint-feasibility.md 附錄 A.1（Issue #11），逐字保留。
-// 忠實反映現行 src/game.ts / src/checkout.ts / src/game_manager.ts 語意：
-//   RC1 release 無條件覆蓋、RC2 confirm 無 caller 身分、RC3 fire-and-forget 重置。
-// 預期驗證結果：P1/P2 不變量「必須」找到反例（紅燈＝設計要求，見 specs/README.md）。
+// checkout.qnt — Checkout×Ticket×SeatMap×GameManager 併發模型（現行正式規格）
+// 忠實反映修復後 src/game.ts / src/checkout.ts / src/game_manager.ts 語意：
+//   1. confirm 增加呼叫者認領守衛（ticketBuyer == u，含 Sold 冪等分支）
+//   2. gameOver 增加靜止期守衛（無 Paying/Paid in-flight 才重置）
+// 預期驗證結果：P1/P2/P3 不變量於所有隨機種子均無反例（綠燈＝驗證通過）。
 module checkout {
   type Status = Available | Reserved | Sold
   type Phase = Idle | Paying | Paid | Done | Failed

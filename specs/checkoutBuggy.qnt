@@ -1,10 +1,9 @@
-// checkoutFixed.qnt — 修復方向模型（已於研究報告驗證）
-// 來源：docs/research/11-quint-feasibility.md 附錄 A.1＋A.2 差異（Issue #11）。
-// 相對 checkout.qnt（BUGGY）僅兩處守衛差異（其餘逐字相同）：
-//   1. confirm + 認領守衛 ticketBuyer == u（修復 F1/F3：RC2，含 Sold 冪等分支）
-//   2. gameOver + quiescence 守衛（修復 F2：RC3，無 Paying/Paid in-flight 才重置）
-// 預期驗證結果：P1/P2/P3 於固定 seed 之 quint run 均無反例（綠燈）。
-module checkoutFixed {
+// checkoutBuggy.qnt — Checkout×Ticket×SeatMap×GameManager 歷史缺陷對照模型（BUGGY 基準）
+// 來源：docs/research/11-quint-feasibility.md 附錄 A.1（Issue #11），逐字保留。
+// 忠實反映修復前 src/game.ts / src/checkout.ts / src/game_manager.ts 語意：
+//   RC1 release 無條件覆蓋、RC2 confirm 無 caller 身分、RC3 fire-and-forget 重置。
+// 預期驗證結果：P1/P2 不變量「必須」找到反例（紅燈＝設計要求，見 specs/README.md）。
+module checkoutBuggy {
   type Status = Available | Reserved | Sold
   type Phase = Idle | Paying | Paid | Done | Failed
   pure val Users: Set[str] = Set("A", "B")
@@ -68,10 +67,9 @@ module checkoutFixed {
     epoch' = epoch, purchasedAt' = purchasedAt,
   }
 
-  // checkout.ts:38-40 → game.ts:46-66；修復（A.2）：+認領守衛，Sold 冪等分支亦須 reservedBy==u
+  // checkout.ts:38-40 → game.ts:46-66（無 caller 身分；Sold 冪等 true；見 §2.6.2）
   action confirm(u: str): bool = all {
     userPhase.get(u) == Paid,
-    ticketBuyer == u,                              // 修復 F1/F3：confirm 認領呼叫者
     userPhase' = userPhase.put(u, Done),
     purchasedAt' = purchasedAt.put(u, epoch),
     viewStatus' = Sold,                         // checkout.ts:40
@@ -82,9 +80,8 @@ module checkoutFixed {
     },
   }
 
-  // game.ts:112-125 → game_manager.ts:11-17；修復（A.2）：+quiescence 守衛（串行化重置）
+  // game.ts:112-125 → game_manager.ts:11-17（fire-and-forget、unconditional release）
   action gameOver: bool = all {
-    Users.forall(v => userPhase.get(v) != Paying and userPhase.get(v) != Paid),  // 修復 F2：有 in-flight saga 不重置
     ticketStatus' = Available, ticketBuyer' = "", viewStatus' = Available,
     epoch' = epoch + 1, userPhase' = userPhase,
     transientRetries' = transientRetries, purchasedAt' = purchasedAt,
