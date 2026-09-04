@@ -35,7 +35,11 @@ export const ticketObject = restate.object({
                 state.reservedUntil = null;
             }
 
-            if (state.status === "RESERVED" && state.reservedBy !== userId) {
+            // Issue #21：已 RESERVED 一律拒絕（含同一使用者）——不再冪等回 true，
+            // 以免同 user 併發結帳同座位時兩次 reserve 各自成功造成雙重扣款。
+            // 逾期的 RESERVED 已在上方分支被釋放為 AVAILABLE，此處仍為 RESERVED 者必屬有效保留。
+            // 重播安全：同 invocation 的重試由 Restate journal 重放，不會重呼 handler。
+            if (state.status === "RESERVED") {
                 throw new restate.TerminalError("Ticket is currently reserved");
             }
 

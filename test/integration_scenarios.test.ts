@@ -24,7 +24,7 @@ describe("整合式情境 S1——同 user 併發下單同座位（雙重扣款�
   // reserve 成功（同 user 冪等 return true）→ 各付一次款、各發一次信 → 兩次 Booking Confirmed。
   // 修復後僅一次成功，另一方 reserve 拋 TerminalError，走補償路徑（不做付款/發信）。
   // → 修復前紅燈（2 次付款）、修復後綠燈（1 次付款），故以 it.skip 交付（斷言完整保留）。
-  it.skip("同一 user 併發兩次結帳同座位：僅一次 Booking Confirmed，付款/發信各只執行 1 次", async (t) => {
+  it("同一 user 併發兩次結帳同座位：僅一次 Booking Confirmed，付款/發信各只執行 1 次", async (t) => {
     const itg = createIntegration();
     const checkout = itg.checkout;
     const req = { ticketId: "seat-1", userId: "alice", paymentMethodId: "card_success" };

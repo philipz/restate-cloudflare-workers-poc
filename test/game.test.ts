@@ -43,7 +43,7 @@ describe("Ticket.reserve()", () => {
   // 以杜絕同 user 併發結帳同座位造成的雙重扣款。
   // 重播安全：同 invocation 重試由 journal 重放，不會重呼 handler。
   // → 修復前紅燈（現行 return true）、修復後綠燈，故以 it.skip 交付。
-  it.skip("同一使用者重複 reserve（已 RESERVED）：一律拒絕並拋 TerminalError（不再冪等回 true）", async (t) => {
+  it("同一使用者重複 reserve（已 RESERVED）：一律拒絕並拋 TerminalError（不再冪等回 true）", async (t) => {
     const future = Date.now() + 15 * 60 * 1000;
     const reserved: TicketState = {
       status: "RESERVED",
