@@ -66,37 +66,65 @@ describe("整合式情境 S1——同 user 併發下單同座位（雙重扣款�
 });
 
 describe("整合式情境 S2——付款失敗補償時票已被他人買走", () => {
-  // 既有缺陷（Issue #17 §B.4）：checkout.ts 補償路徑無條件 seatMap.set(AVAILABLE)，
-  // 未理會 ticket.release(userId) 對「已 SOLD」回傳 false——真值 SOLD 時 view 仍被抹成 AVAILABLE，
-  // 產生幽靈可售票。本測試斷言「正確」行為（view 不得回寫 AVAILABLE），
-  // 現行實作會紅燈 → 以 it.skip 交付（斷言完整保留），建議另開 agent-fix-bug。
-  it.skip("補償不得無條件把 view 回寫 AVAILABLE（真值 SOLD 時）", async (t) => {
+  // 缺陷（Issue #17 §B.4 → Issue #22）：checkout.ts 補償路徑無條件 seatMap.set(AVAILABLE)，
+  // 未理會 ticket.release(userId) 對「已 SOLD」回傳 false——真值 SOLD 時 view 仍被抹成
+  // AVAILABLE，且該寫入發生在買家寫入 SOLD 之後（last-writer-wins）→ 永久性幽靈可售票。
+  //
+  // Issue #22 前的舊版測試走錯路徑：讓 alice 對「已 SOLD」座位下單，會在 step1 的
+  // reserve（try/catch 之外）就拋錯 → 補償區塊根本不執行，故驗不到本缺陷。
+  // 現改用 Issue #20 ③ 的 ctx.run hook 在「alice 已 reserve、補償尚未開始」的視窗精準插隊，
+  // 讓 alice 確實走進補償路徑（release 回 false、但仍回寫 view）。
+  //
+  // 註：此處用 before hook 而非 after——付款失敗時 `await fn()` 直接外拋，
+  // harness 的 after hook 不會被觸發（見 helpers/integration.ts 的 ctx.run）。
+  // before("process-payment") 位於 step1 reserve 之後、補償之前，正是所需視窗。
+  it("補償不得把 view 回寫 AVAILABLE（真值已 SOLD 給他人時）", async (t) => {
     const itg = createIntegration();
 
-    // 讓 alice 先保留座位（reserve 成功、真值 RESERVED 屬於 alice）
-    await itg.ticket("seat-2").reserve("alice");
+    // 控制點：alice 的付款開始前（step1 reserve 已完成）插隊，
+    // 模擬「回合重置 → bob 買走同一張票並寫入較新的 view=SOLD」。
+    let injected = false;
+    itg.world.hooks.before = async (label) => {
+      if (label !== "process-payment" || injected) {
+        return;
+      }
+      injected = true;
+      // 背景重置：GameManager.reset 以 fire-and-forget 釋放所有票（含 alice 的保留）
+      await itg.manager.reset();
+      await itg.drain(); // 投遞 reset 產生的 SeatMap.reset ＋ 50 張 Ticket.release
+      // bob 買走同一張票，並寫入較新的 view=SOLD
+      await itg.ticket("seat-2").reserve("bob");
+      await itg.ticket("seat-2").confirm("bob");
+      await itg.seatMap.set({ seatId: "seat-2", status: "SOLD" });
+    };
 
-    // 期間座位被 GameManager reset 後由 bob 買走（真值 SOLD，屬於 bob）；
-    // 由於 GameManager.reset 會 release 全部票，再以 bob 成交：
-    await itg.manager.reset();
-    await itg.ticket("seat-2").reserve("bob");
-    await itg.ticket("seat-2").confirm("bob");
-
-    // alice 以 card_decline 下單：reserve 對「已 SOLD(他人)」丟錯，走補償路徑；
-    // 補償只應在真值「非 SOLD」時才把 view 回寫 AVAILABLE。
+    // alice 以 card_decline 下單：step1 reserve 成功 → 付款失敗 → 進入補償
     await t.assert.rejects(
-      async () => await itg.checkout.process({ ticketId: "seat-2", userId: "alice", paymentMethodId: "card_decline" }),
-      (err: Error) => err instanceof TerminalError
+      async () =>
+        await itg.checkout.process({
+          ticketId: "seat-2",
+          userId: "alice",
+          paymentMethodId: "card_decline",
+        }),
+      (err: Error) => err instanceof TerminalError && /Payment failed/.test(err.message)
     );
+    t.assert.equal(injected, true, "插隊必須發生在付款後、補償前");
 
-    // 真值仍是 SOLD（屬於 bob）
+    // 補償確實嘗試過釋放（但因票已 SOLD 給他人，release 回 false、不改真值）
+    const releaseCalls = itg.world.calls.filter(
+      (c) => c.service === "Ticket" && c.key === "seat-2" && c.handler === "release"
+    );
+    t.assert.equal(releaseCalls.length >= 1, true, "補償應嘗試過 release");
+
+    // 真值：票已成交給 bob，未被 alice 的補償釋放
     const state = itg.stateOf("Ticket", "seat-2").data.state as TicketState;
     t.assert.equal(state.status, "SOLD");
     t.assert.equal(state.reservedBy, "bob");
 
-    // 關鍵斷言：view 不得被回寫為 AVAILABLE（真值 SOLD 時）
+    // 關鍵斷言：alice 的補償不得覆蓋 bob 較新的 SOLD → view 必須與真值一致
     const map = itg.stateOf("SeatMap", "global").data.map as Record<string, string> | undefined;
-    t.assert.notEqual(map?.["seat-2"], "AVAILABLE");
+    t.assert.notEqual(map?.["seat-2"], "AVAILABLE", "真值 SOLD 時 view 不得為 AVAILABLE（幽靈可售票）");
+    t.assert.equal(map?.["seat-2"], "SOLD", "view 應與真值一致");
   });
 });
 
