@@ -7,7 +7,7 @@
             "esnext"
         ],
         "types": [
-            "@cloudflare/workers-types/2023-07-01"
+            "@cloudflare/workers-types"
         ],
         "strict": true,
         "skipLibCheck": true,
