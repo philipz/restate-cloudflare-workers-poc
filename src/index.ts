@@ -2,6 +2,7 @@ import { createEndpointHandler } from "@restatedev/restate-sdk-cloudflare-worker
 import { ticketObject, seatMapObject } from "./game";
 import { checkoutWorkflow } from "./checkout";
 import { gameManager } from "./game_manager";
+import { delay } from "./utils/delay";
 
 console.log("Starting worker script with createEndpointHandler...");
 
@@ -17,8 +18,8 @@ async function handleMockPayment(request: Request): Promise<Response> {
     const body = await request.json() as { amount: number; paymentMethodId: string };
     console.log(`[MockGateway] Processing payment: $${body.amount} via ${body.paymentMethodId}`);
 
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Simulate processing time（測試可經 setDelayImpl 歸零）
+    await delay(500);
 
     if (body.paymentMethodId === "card_decline") {
         return new Response(JSON.stringify({ error: "Insufficient funds" }), {

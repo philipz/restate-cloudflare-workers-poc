@@ -29,11 +29,17 @@ SEAT3="$SEAT_PREFIX-seat-3"
 SEAT4="$SEAT_PREFIX-seat-4"
 SEAT5="$SEAT_PREFIX-seat-5"
 SEAT6="$SEAT_PREFIX-seat-6"
+SEAT8="$SEAT_PREFIX-seat-8"   # 測試 8：RESERVED 中間態查詢
 BULK_IDS=()
 for i in {1..5}; do
     BULK_IDS+=("$SEAT_PREFIX-bulk-seat-$i")
 done
-ALL_IDS=("$SEAT1" "$SEAT2" "$SEAT3" "$SEAT4" "$SEAT5" "$SEAT6" "${BULK_IDS[@]}")
+ALL_IDS=("$SEAT1" "$SEAT2" "$SEAT3" "$SEAT4" "$SEAT5" "$SEAT6" "$SEAT8" "${BULK_IDS[@]}")
+
+# 測試 9（湊滿 50 自動重置）必須使用 SeatMap 實際統計的 seat-1..50 鍵，
+# 不能加 run 前綴——auto-reset 的觸發條件是 map 中 SOLD 數 >= 50。
+# 預設關閉（會動到共用的 seat-1..50 與 SeatMap/global），以 RUN_AUTORESET=1 啟用。
+RUN_AUTORESET="${RUN_AUTORESET:-0}"
 
 # 測試計數器
 TOTAL_TESTS=0
@@ -289,6 +295,98 @@ if [ "$SUCCESS_COUNT" -eq 5 ]; then
 else
     echo -e "${COLOR_RED}✗ FAIL${COLOR_NC}: 大量訂票失敗 ($SUCCESS_COUNT/5)"
     FAILED_TESTS=$((FAILED_TESTS + 1))
+fi
+
+# ============================================
+# 測試 8: RESERVED 中間態查詢
+# ============================================
+# 文件（deepwiki Testing-Strategy「Query reserved seat」）宣稱有此覆蓋，實際從未實作。
+# 作法：背景送出結帳，趁付款視窗（約 500ms）查詢，應看到 RESERVED＋reservedBy＋reservedUntil。
+print_test "8" "RESERVED 中間態查詢（付款進行中）"
+
+curl -s -X POST "$RESTATE_URL/Checkout/process" \
+    -H "Content-Type: application/json" \
+    -d "{\"ticketId\": \"$SEAT8\", \"userId\": \"test-user-8\", \"paymentMethodId\": \"card_success\"}" \
+    >/dev/null &
+CHECKOUT8_PID=$!
+
+# 付款模擬為 500ms；在該視窗內取樣（最多嘗試 8 次、每次 100ms）
+MID_STATE=""
+for _ in {1..8}; do
+    sleep 0.1
+    MID_STATE=$(curl -s -X POST "$RESTATE_URL/Ticket/$SEAT8/get" \
+        -H "Content-Type: application/json" -d '{}')
+    if echo "$MID_STATE" | grep -q "RESERVED"; then
+        break
+    fi
+done
+
+assert_contains "$MID_STATE" "RESERVED" "付款進行中應可查到 RESERVED 中間態"
+assert_contains "$MID_STATE" "test-user-8" "中間態應記錄 reservedBy"
+assert_contains "$MID_STATE" "reservedUntil" "中間態應帶有 reservedUntil"
+
+wait $CHECKOUT8_PID
+wait_a_bit
+
+FINAL8=$(curl -s -X POST "$RESTATE_URL/Ticket/$SEAT8/get" \
+    -H "Content-Type: application/json" -d '{}')
+assert_contains "$FINAL8" "SOLD" "結帳完成後應收斂為 SOLD"
+
+# ============================================
+# 測試 9: 湊滿 50 SOLD → auto-reset（預設關閉）
+# ============================================
+# 這是唯一會動到共用 seat-1..50 與 SeatMap/global 的情境，且需要約 50 次結帳，
+# 故預設不執行；以 RUN_AUTORESET=1 明確啟用。
+if [ "$RUN_AUTORESET" = "1" ]; then
+    print_test "9" "湊滿 50 席 SOLD 觸發 auto-reset"
+
+    # 先重置，確保從乾淨狀態開始湊滿 50
+    curl -s -X POST "$RESTATE_URL/SeatMap/global/reset" \
+        -H "Content-Type: application/json" -d '{}' >/dev/null
+    for i in $(seq 1 50); do
+        curl -s -X POST "$RESTATE_URL/Ticket/seat-$i/cleanup" \
+            -H "Content-Type: application/json" -d '{}' >/dev/null
+    done
+
+    AUTORESET_SOLD=0
+    for i in $(seq 1 50); do
+        RESP=$(curl -s -X POST "$RESTATE_URL/Checkout/process" \
+            -H "Content-Type: application/json" \
+            -d "{\"ticketId\": \"seat-$i\", \"userId\": \"autoreset-user-$i\", \"paymentMethodId\": \"card_success\"}")
+        if echo "$RESP" | grep -q "Booking Confirmed"; then
+            AUTORESET_SOLD=$((AUTORESET_SOLD + 1))
+        fi
+    done
+
+    if [ "$AUTORESET_SOLD" -eq 50 ]; then
+        echo -e "${COLOR_GREEN}✓ PASS${COLOR_NC}: 50 席全部售出 (50/50)"
+        PASSED_TESTS=$((PASSED_TESTS + 1))
+    else
+        echo -e "${COLOR_RED}✗ FAIL${COLOR_NC}: 僅售出 $AUTORESET_SOLD/50，未達 auto-reset 觸發條件"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+    fi
+
+    # auto-reset 為 fire-and-forget（SeatMap → GameManager → 50 張 release），給予收斂時間
+    sleep 5
+
+    VIEW=$(curl -s -X POST "$RESTATE_URL/SeatMap/global/get" \
+        -H "Content-Type: application/json" -d '{}')
+    assert_contains "$VIEW" "AVAILABLE" "auto-reset 後視圖應回到 AVAILABLE"
+
+    if echo "$VIEW" | grep -q "SOLD"; then
+        echo -e "${COLOR_RED}✗ FAIL${COLOR_NC}: auto-reset 後視圖仍有 SOLD 殘留"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+    else
+        echo -e "${COLOR_GREEN}✓ PASS${COLOR_NC}: auto-reset 後視圖無 SOLD 殘留"
+        PASSED_TESTS=$((PASSED_TESTS + 1))
+    fi
+
+    # 真值層：GameManager.reset 會逐張 release，抽樣驗證
+    SAMPLE=$(curl -s -X POST "$RESTATE_URL/Ticket/seat-1/get" \
+        -H "Content-Type: application/json" -d '{}')
+    assert_contains "$SAMPLE" "AVAILABLE" "auto-reset 後 seat-1 真值應為 AVAILABLE"
+else
+    echo -e "\n${COLOR_YELLOW}略過測試 9（湊滿 50 auto-reset）：設定 RUN_AUTORESET=1 可啟用${COLOR_NC}"
 fi
 
 # ============================================
