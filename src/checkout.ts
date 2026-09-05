@@ -28,9 +28,15 @@ export const checkoutWorkflow = restate.service({
                 });
             } catch (error) {
                 // Step 3: Compensation
-                await ticket.release(userId);
-                // Revert SeatMap (View)
-                await seatMap.set({ seatId: ticketId, status: "AVAILABLE" });
+                // Issue #22：release 對「已 SOLD（或已由他人保留）」的票會回 false——
+                // 此時本 saga 已不再持有該座位，若仍無條件把 view 寫回 AVAILABLE，
+                // 會覆蓋買家較新的 SOLD 寫入（last-writer-wins）而產生永久性「幽靈可售票」。
+                // 因此僅在確實釋放成功時才回寫視圖。
+                const released = await ticket.release(userId);
+                if (released) {
+                    // Revert SeatMap (View)
+                    await seatMap.set({ seatId: ticketId, status: "AVAILABLE" });
+                }
                 throw new restate.TerminalError(`Payment failed: ${(error as Error).message}`);
             }
 

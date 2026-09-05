@@ -45,7 +45,11 @@ describe("Checkout.process() — 成功路径", () => {
 describe("Checkout.process() — 補償路徑", () => {
   it("支付被拒：release 票券、SeatMap 回 AVAILABLE、拋 TerminalError，且不確認不發信", async (t) => {
     const mock = createMockState();
-    const ctx = createMockContext(mock);
+    // Issue #22：補償改為「release 成功（回 true）才回寫 view」。recorder 預設回 undefined，
+    // 與真實 Ticket.release（釋放成功回 true，見 src/game.ts）不符，故此處明確模擬真實回傳值。
+    const ctx = createMockContext(mock, {
+      overrides: { Ticket: { release: () => true } },
+    });
 
     await t.assert.rejects(
       () =>
@@ -73,6 +77,33 @@ describe("Checkout.process() — 補償路徑", () => {
     t.assert.deepStrictEqual(mock.objectCalls[3].args, [{ seatId: "seat-3", status: "AVAILABLE" }]);
     t.assert.deepStrictEqual(mock.runs, ["process-payment"]); // 未送達 send-email
     t.assert.equal(callOf(mock.objectCalls, "confirm").length, 0);
+  });
+
+  it("Issue #22：release 回 false（票已 SOLD 給他人）時，補償不得回寫 SeatMap", async (t) => {
+    const mock = createMockState();
+    const ctx = createMockContext(mock, {
+      overrides: { Ticket: { release: () => false } },
+    });
+
+    await t.assert.rejects(
+      () =>
+        handlers().process(ctx, {
+          ticketId: "seat-9",
+          userId: "alice",
+          paymentMethodId: "card_decline",
+        }),
+      (err: Error) => err instanceof TerminalError
+    );
+
+    // 補償嘗試過 release，但因未持有該票（回 false）→ 不得再寫 view，
+    // 否則會覆蓋買家較新的 SOLD（幽靈可售票）。
+    t.assert.deepStrictEqual(
+      mock.objectCalls.map((c) => `${c.service}.${c.handler}`),
+      ["Ticket.reserve", "SeatMap.set", "Ticket.release"]
+    );
+    const viewWrites = mock.objectCalls.filter((c) => c.service === "SeatMap");
+    t.assert.equal(viewWrites.length, 1); // 僅 step1 的 RESERVED，無補償回寫
+    t.assert.deepStrictEqual(viewWrites[0].args, [{ seatId: "seat-9", status: "RESERVED" }]);
   });
 
   it("閘道timeout（card_error）：同樣走補償，錯誤訊息含 Gateway timeout", async (t) => {
