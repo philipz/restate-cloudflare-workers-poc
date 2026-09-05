@@ -46,7 +46,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # --legacy-peer-deps：wrangler@4 的 optional peer 要求
+        # @cloudflare/workers-types@^5，而本 repo 固定在 ^4（README 已記載此衝突）。
+        # 此處沿用既有安裝方式，不在測試強化的 PR 內變更相依版本。
+        run: npm ci --legacy-peer-deps
 
       - name: Typecheck (src, noEmit)
         run: npx tsc -p tsconfig.json
