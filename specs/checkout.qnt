@@ -2,6 +2,7 @@
 // 忠實反映修復後 src/game.ts / src/checkout.ts / src/game_manager.ts 語意：
 //   1. confirm 增加呼叫者認領守衛（ticketBuyer == u，含 Sold 冪等分支）
 //   2. gameOver 增加靜止期守衛（無 Paying/Paid in-flight 才重置）
+//   3. reserve 對已 Reserved 一律拒絕（含同一使用者）→ 遏止同 user 併發雙重扣款（Issue #21）
 // 預期驗證結果：P1/P2/P3 不變量於所有隨機種子均無反例（綠燈＝驗證通過）。
 module checkout {
   type Status = Available | Reserved | Sold
@@ -23,20 +24,20 @@ module checkout {
   }
 
   // checkout.ts:16 → game.ts:19-44 Ticket.reserve（per-key 串行 → 原子）
+  // Issue #21：已 RESERVED 一律拒絕（含同一使用者），不再「同 user 冪等回 true」——
+  // 以杜絕同 user 併發結帳同座位時的雙重扣款。
   action reserve(u: str): bool = any {
     all { userPhase.get(u) == Idle, ticketStatus == Sold,
           userPhase' = userPhase.put(u, Failed),
           ticketStatus' = ticketStatus, ticketBuyer' = ticketBuyer,
           viewStatus' = viewStatus, transientRetries' = transientRetries,
           epoch' = epoch, purchasedAt' = purchasedAt },
-    all { userPhase.get(u) == Idle, ticketStatus == Reserved, ticketBuyer != u,
+    all { userPhase.get(u) == Idle, ticketStatus == Reserved,
           userPhase' = userPhase.put(u, Failed),
           ticketStatus' = ticketStatus, ticketBuyer' = ticketBuyer,
           viewStatus' = viewStatus, transientRetries' = transientRetries,
           epoch' = epoch, purchasedAt' = purchasedAt },
-    all { userPhase.get(u) == Idle,
-          any { ticketStatus == Available,
-                all { ticketStatus == Reserved, ticketBuyer == u } },
+    all { userPhase.get(u) == Idle, ticketStatus == Available,
           ticketStatus' = Reserved, ticketBuyer' = u,
           viewStatus' = Reserved,               // checkout.ts:18
           userPhase' = userPhase.put(u, Paying),

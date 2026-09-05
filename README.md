@@ -87,12 +87,49 @@ curl -X POST http://localhost:9070/deployments \
     - 預期: 第二次請求失敗，顯示 "Seat already sold"。
 4.  **並發控制 (Concurrency)**
     - 輸入: 多個請求同時搶同一座位。
-    - 預期: 只有一個請求成功，其餘失敗。
+    - 預期: 恰好一個請求回傳 "Booking Confirmed"，其餘回傳 "currently reserved" 或 "already sold" 的正確拒絕（`test-all.sh` 測試 5 驗證此失敗型別分布）。
 
 ### 如何執行測試
 
+#### 0. 自動化單元/回歸測試 (`npm test`)
+不需要外部服務（使用 fake Restate SDK loader），可在任何環境執行：
+
+```bash
+npm install           # 安裝相依（wrangler 與 workers-types 的 optional peer 衝突時可加 --legacy-peer-deps）
+npm test              # 全數測試（目前為 57 tests，約 1.4 秒）
+npm run test:race     # 並發反例（race counterexample）專門測試
+npm run test:coverage # 覆蓋率報告（node --experimental-test-coverage，零額外相依）
+```
+
+測試分層：
+- **單元測試**：以 `test/helpers/mocks.ts` 的 recorder stub 驅動單一 handler。
+- **整合式情境測試**（`test/integration_scenarios.test.ts`）：以 `test/helpers/integration.ts`
+  把 Ticket/SeatMap/GameManager/Checkout 的**真實 handler 互接**，具備 per-key 互斥、
+  fire-and-forget 延遲投遞、`ctx.run` 插隊控制點與呼叫軌跡，用於釘住跨物件競態
+  （併發雙重扣款、補償幽靈可售票、TTL 逾期與邊界值等）。
+- **harness 自我驗證**（`test/harness_fidelity.test.ts`）：確保上述測試基礎設施本身正確。
+
+> **覆蓋率現況**：`src/` 各檔均為 100% line/branch/function。
+> 但這**不等於**行為正確——本專案兩個真實缺陷（同 user 併發雙重扣款、
+> 補償覆寫視圖造成幽靈可售票）都是在 100% 覆蓋率下才被整合式情境測試找出來的。
+> 覆蓋率只代表「程式被執行過」，情境設計才決定「行為被驗證過」。
+
+> 註：`src/utils/delay.ts` 提供可注入的模擬延遲；測試啟動時
+> （`test/loader/test-setup.mjs`）將其歸零，故套件不會真的睡滿
+> payment 500ms／email 200ms。正式環境行為不變。
+
+#### 0.1 CI 閘門 (`.github/workflows/test.yml`)
+
+PR 與 push 至 `main`／`software-factory` 時自動執行
+`npm ci` → `tsc`（src 與 test 兩份設定）→ `npm test`，並附帶非阻斷的覆蓋率摘要。
+需外部 Restate server 的 E2E（`test-all.sh`／`test-cloud.sh`）不在 CI 範圍內。
+
 #### 1. 本地環境測試 (`test-all.sh`)
 針對本地運行的 Restate Server (`localhost:8080`) 執行完整測試套件。
+
+**重跑前提**:
+- 本地 Restate Server 已啟動，且 Worker 服務已註冊至該实例（見上方「註冊服務」）。
+- 腳本每次執行使用唯一 run 前綴（`RUN_ID` 環境變數可覆蓋）作為座位 id，並在開頭前置呼叫 `SeatMap/global/reset` 與 `Ticket/{id}/cleanup` 清理狀態，因此對持久化的 Restate 实例**可重複執行**（同一实例連跑兩次皆應全綠）。
 
 ```bash
 ./test-all.sh
@@ -101,8 +138,8 @@ curl -X POST http://localhost:9070/deployments \
 #### 2. 雲端環境測試 (`test-cloud.sh`)
 針對 Restate Cloud 環境執行驗證。
 
-**設定認證**:
-在專案根目錄建立 `.env` 檔案，填入您的 Restate Cloud Token：
+**設定認證**（必要）:
+在專案根目錄建立 `.env` 檔案，填入您的 Restate Cloud Token。未設定 `RESTATE_AUTH_TOKEN` 時腳本會**提前以非 0 結束碼退出**：
 ```env
 RESTATE_AUTH_TOKEN=your_token_here
 ```
@@ -112,49 +149,53 @@ RESTATE_AUTH_TOKEN=your_token_here
 ./test-cloud.sh
 ```
 
+腳本結尾會印出 PASSED/FAILED 摘要；**任一測試失敗即以 exit 1 結束**，可被自動化直接依賴結束碼判斷。
+
 #### 3. 壓力測試 (Load Testing with K6)
 模擬大量用戶搶票的高並發情境。
 
-**測試腳本**: `load-test.js`
+**測試腳本**: `load-test.js`（本地／雲端共用一份，`load-test-local.js` 為相容入口）
 **情境**:
-- 隨機選擇座位 (1-50)
+- 隨機選擇座位 (1-50，可用 `SEATS` 覆寫)
 - 隨機支付結果: 80% 成功, 10% 拒絕, 10% 錯誤 (Gateway Timeout)
 
+**門檻設計**（重要）:
+- ~~`http_req_failed: rate<0.1`~~ 已移除：本測試刻意製造 10% 拒絕＋10% 逾時
+  （皆由 Restate 以 HTTP 500 回傳），期望失敗率本就約 20%，該門檻必然紅燈、等於沒有訊號。
+- 改用自訂指標 **`unexpected_errors`（`rate<0.01`）**：只計「非預期」回應，
+  四種已知業務結果（成交／已售出或保留中／付款拒絕／閘道逾時）皆不計入。
+- **`invariant_violations`（`count==0`）**：測試結束後（`teardown`）逐座位比對真值與視圖，
+  檢查 I1 SOLD 必有持有者、**I2 真值 SOLD 時視圖不得為 AVAILABLE（幽靈可售票，見 Issue #22）**、
+  I3 RESERVED 必有 `reservedBy`/`reservedUntil`。可用 `SKIP_INVARIANTS=1` 跳過。
+- 另有 `outcome_*` 計數器輸出業務結果分佈，僅供閱讀、不設門檻。
+
 **執行方式**:
 ```bash
-# 確保 .env 已設定 RESTATE_AUTH_TOKEN
+# 本地（預設 TARGET=local，免驗證）
+k6 run load-test.js
+k6 run -e VUS=10 -e DURATION=60s load-test.js
+k6 run load-test-local.js            # 等價於 -e TARGET=local
+
+# 雲端（需 token）
 source .env
+k6 run -e TARGET=cloud -e RESTATE_AUTH_TOKEN=$RESTATE_AUTH_TOKEN load-test.js
+k6 run -e TARGET=cloud -e RESTATE_AUTH_TOKEN=$RESTATE_AUTH_TOKEN -e VUS=10 -e DURATION=60s load-test.js
 
-# 預設執行 (5 VUs, 30s)
-k6 run -e RESTATE_AUTH_TOKEN=$RESTATE_AUTH_TOKEN load-test.js
-
-# 自訂參數執行
-# VUS: 並發用戶數
-# DURATION: 測試持續時間
-k6 run -e RESTATE_AUTH_TOKEN=$RESTATE_AUTH_TOKEN -e VUS=10 -e DURATION=60s load-test.js
-```
-
-#### 4. 本地壓力測試 (Local Load Testing)
-針對本地運行的 Restate Server (`localhost:8080`) 進行測試。
-
-**測試腳本**: `load-test-local.js`
-**前置需求**: 確保本地 Restate Server 已啟動 (Docker)。
-
-**執行方式**:
-```bash
-# 預設執行 (5 VUs, 30s)
-k6 run load-test-local.js
-
-# 自訂參數執行
-k6 run -e VUS=10 -e DURATION=60s load-test-local.js
+# 直接指定任意 ingress
+k6 run -e BASE_URL=http://localhost:8080 load-test.js
 ```
 
 ## 📂 專案結構
 
 - `src/game.ts`: **Virtual Objects** - 包含 `Ticket` (座位狀態) 與 `SeatMap` (座位圖聚合)
 - `src/checkout.ts`: **Workflow** - 結帳流程與 Saga 補償
-- `src/utils/payment_new.ts`: 支付邏輯 (整合 httpbin.org)
+- `src/utils/payment_new.ts`: 支付邏輯 (本地模擬，無外部相依)
 - `src/utils/email.ts`: 郵件發送邏輯 (模擬)
+- `src/utils/delay.ts`: 可注入的模擬延遲（測試可歸零，正式環境行為不變）
 - `src/index.ts`: 服務入口與路由
+- `test/helpers/integration.ts`: 整合式測試 harness（真實 handler 互接）
+- `test/integration_scenarios.test.ts`: 跨物件競態/一致性情境（S1–S6）
+- `test/harness_fidelity.test.ts`: harness 自我驗證
+- `.github/workflows/test.yml`: CI 閘門（typecheck ＋ npm test）
 - `test-all.sh`: 本地端完整測試腳本
 - `test-cloud.sh`: 雲端驗證腳本
