@@ -198,6 +198,49 @@ describe("整合式情境 S4——TTL 逾期釋放整鏈路", () => {
     t.assert.equal(state.status, "SOLD");
     t.assert.equal(state.reservedBy, "bob");
   });
+
+  // TTL 邊界值：game.ts 的守衛是 `now > reservedUntil`（嚴格大於），
+  // 故「恰好等於 reservedUntil」仍屬有效保留，不得被他人搶走。
+  // 以受控時鐘精準停在邊界上，避免用 Date.now() 產生時序 flaky。
+  const TTL_MS = 15 * 60 * 1000;
+
+  it("邊界：now 恰等於 reservedUntil → 尚未過期，他人 reserve 仍被拒", async (t) => {
+    const t0 = 2_000_000;
+    const itg = createIntegration(t0);
+    const ticket = itg.ticket("seat-41");
+
+    await ticket.reserve("alice");
+    const reserved = itg.stateOf("Ticket", "seat-41").data.state as TicketState;
+    t.assert.equal(reserved.reservedUntil, t0 + TTL_MS, "保留期應為 t0 + 15 分鐘");
+
+    // 時鐘推進到「正好等於」到期時刻
+    itg.world.now = () => t0 + TTL_MS;
+
+    await t.assert.rejects(
+      async () => await ticket.reserve("bob"),
+      (err: Error) => err instanceof TerminalError && /currently reserved/.test(err.message),
+      "邊界上（now === reservedUntil）仍是有效保留"
+    );
+
+    const after = itg.stateOf("Ticket", "seat-41").data.state as TicketState;
+    t.assert.equal(after.reservedBy, "alice", "保留人不得被覆寫");
+  });
+
+  it("邊界：now 比 reservedUntil 多 1ms → 已過期，他人可接手", async (t) => {
+    const t0 = 3_000_000;
+    const itg = createIntegration(t0);
+    const ticket = itg.ticket("seat-42");
+
+    await ticket.reserve("alice");
+
+    // 超過到期時刻 1 毫秒——與上一個測試僅差 1ms，鎖住比較運算子的方向
+    itg.world.now = () => t0 + TTL_MS + 1;
+
+    t.assert.equal(await ticket.reserve("bob"), true, "逾期後他人應可接手");
+    const after = itg.stateOf("Ticket", "seat-42").data.state as TicketState;
+    t.assert.equal(after.reservedBy, "bob");
+    t.assert.equal(after.reservedUntil, t0 + TTL_MS + 1 + TTL_MS, "應以新的 now 重新計算保留期");
+  });
 });
 
 describe("整合式情境 S6——湊滿 50 SOLD 自動重置", () => {

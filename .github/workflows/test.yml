@@ -1,0 +1,66 @@
+name: Test
+
+# PR 閘門：型別檢查＋單元/整合測試（零外部相依，不跑需 Restate server 的 E2E）。
+#
+# 為什麼需要：在此之前 repo 沒有任何 workflow 執行 npm test——
+# 55 個測試（含併發雙重扣款、補償幽靈可售票等競態回歸）全靠人工執行，
+# 任何 PR 都可以把測試弄紅而不被擋下。
+#
+# 注意（H5）：本檔位於 .github/**，依 .github/factory/risk-paths.yml 屬硬規則 H5，
+# 觸碰即 risk=2（無裁量）→ 需人類審查後合併，不得由 agent 自行併入 trunk。
+on:
+  pull_request:
+    branches:
+      - main
+      - software-factory
+  push:
+    branches:
+      - main
+      - software-factory
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # 同一 PR 的新 push 取消尚在執行的舊 run，節省 runner 額度。
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # 與 test/types/node-test.d.ts 對應的 node:test 執行期（Node 22 LTS）。
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        # --legacy-peer-deps：wrangler@4 的 optional peer 要求
+        # @cloudflare/workers-types@^5，而本 repo 固定在 ^4（README 已記載此衝突）。
+        # 此處沿用既有安裝方式，不在測試強化的 PR 內變更相依版本。
+        run: npm ci --legacy-peer-deps
+
+      - name: Typecheck (src, noEmit)
+        run: npx tsc -p tsconfig.json
+
+      - name: Typecheck (tests)
+        run: npx tsc -p test/tsconfig.json --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Coverage summary (non-blocking)
+        # 覆蓋率僅作為可見度資訊，不設門檻、不阻擋 PR。
+        continue-on-error: true
+        run: npm run test:coverage
