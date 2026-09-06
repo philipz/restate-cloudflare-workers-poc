@@ -13,7 +13,7 @@
     "test:coverage": "npm run build:tests && node --import ./test/loader/register.mjs --import ./test/loader/test-setup.mjs --test --experimental-test-coverage --test-coverage-exclude=\"dist/test/**\" --test-reporter=spec \"dist/test/**/*.test.js\""
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240405.0",
+    "@cloudflare/workers-types": "^5.20260903.1",
     "typescript": "^5.4.5",
     "wrangler": "^4.127.1"
   },
