@@ -15,7 +15,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240405.0",
     "typescript": "^5.4.5",
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.129.0"
   },
   "dependencies": {
     "@restatedev/restate-sdk-cloudflare-workers": "^1.17.0"
