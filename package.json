@@ -18,6 +18,6 @@
     "wrangler": "^4.131.0"
   },
   "dependencies": {
-    "@restatedev/restate-sdk-cloudflare-workers": "^1.17.0"
+    "@restatedev/restate-sdk-cloudflare-workers": "^1.17.1"
   }
 }
